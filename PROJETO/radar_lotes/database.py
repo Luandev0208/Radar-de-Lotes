@@ -149,7 +149,7 @@ class Database:
                 if item.address and row["address"]:
                     if (
                         normalize(item.address) == normalize(row["address"])
-                        or token_similarity(item.address, row["address"]) >= 0.7
+                        or token_similarity(item.address, row["address"]) >= 0.6
                     ):
                         evidence += 2
                 if item.dimensions and row["dimensions"] and normalize(item.dimensions) == normalize(row["dimensions"]):
