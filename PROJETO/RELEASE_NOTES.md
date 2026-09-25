@@ -1,8 +1,7 @@
-# Radar de Lotes 1.4.1
+# Radar de Lotes 1.4.2
 
-- Identificação visual clara da versão 1.4.1 e confirmação após atualização.
-- GitHub Actions passa a ser o único responsável pela tag e Release final.
-- BAT local acompanha o workflow sem tentar publicar uma Release concorrente.
-- Instalador baixado é validado por SHA-256 e removido após a atualização.
-- Limpeza restrita à pasta temporária controlada pelo Radar, sem tocar em Downloads ou Desktop.
-- SQLite, lotes, status, histórico, configurações, backups, credencial e tarefas são preservados.
+- Atualizações públicas sem PAT, token ou configuração do GitHub no computador do usuário.
+- Interface de atualização simplificada para verificar, atualizar agora ou deixar para depois.
+- Validação SHA-256 obrigatória antes de executar qualquer instalador.
+- SQLite, lotes, status, histórico, configurações, backups e tarefas preservados.
+- Automações consolidadas em um único `RADAR.bat` reutilizável e sem versão fixa.

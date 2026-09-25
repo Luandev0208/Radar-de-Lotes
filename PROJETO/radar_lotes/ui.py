@@ -16,7 +16,6 @@ from .models import Listing
 from .parsing import location_is_approximate, maps_query
 from .scheduling import search_is_overdue
 from .search import run_search
-from .credentials import CredentialError, load_token, save_token
 from .updater import GitHubUpdater, UpdateError, is_newer, update_check_due
 from .version import __version__
 
@@ -51,35 +50,18 @@ class UpdateWorker(QThread):
 class UpdateDialog(QDialog):
     def __init__(self, db, parent=None):
         super().__init__(parent); self.db = db
-        self.setWindowTitle("Configurações — Atualizações"); self.resize(520, 260)
+        self.setWindowTitle("Atualizações"); self.resize(500, 210)
         box = QVBoxLayout(self)
-        box.addWidget(QLabel(f"Versão instalada: {__version__}"))
-        configured = False
-        if sys.platform == "win32":
-            try: configured = bool(load_token())
-            except CredentialError: pass
-        self.status = QLabel("Credencial GitHub: " + ("Configurada" if configured else "Não configurada"))
-        box.addWidget(self.status)
+        version = QLabel(f"Radar de Lotes v{__version__}")
+        version.setObjectName("cardTitle"); box.addWidget(version)
         explanation = QLabel(
-            "Use uma credencial de acesso refinado, limitada somente a este repositório e com "
-            "permissão Contents: Read. O valor será protegido pelo Gerenciador de Credenciais do Windows."
+            "O Radar verifica atualizações públicas automaticamente. "
+            "Nenhuma conta, senha ou credencial do GitHub é necessária."
         ); explanation.setWordWrap(True); box.addWidget(explanation)
-        self.token = QLineEdit(); self.token.setEchoMode(QLineEdit.Password)
-        self.token.setPlaceholderText("Cole a credencial uma única vez"); box.addWidget(self.token)
         actions = QHBoxLayout()
-        save = QPushButton("SALVAR E VALIDAR"); save.clicked.connect(self.save)
         check = QPushButton("VERIFICAR ATUALIZAÇÕES"); check.clicked.connect(self.check)
-        actions.addWidget(save); actions.addWidget(check); box.addLayout(actions)
+        check.setObjectName("primary"); actions.addWidget(check); box.addLayout(actions)
         close = QPushButton("FECHAR"); close.clicked.connect(self.accept); box.addWidget(close)
-
-    def save(self):
-        try:
-            save_token(self.token.text())
-            GitHubUpdater().verify_credential()
-            self.token.clear(); self.status.setText("Credencial GitHub: Configurada")
-            QMessageBox.information(self, "Credencial configurada", "Acesso de leitura validado e salvo com segurança.")
-        except (CredentialError, UpdateError) as exc:
-            QMessageBox.warning(self, "Não foi possível configurar", str(exc))
 
     def check(self):
         try:
@@ -89,20 +71,23 @@ class UpdateDialog(QDialog):
                 self.install(release)
             else:
                 QMessageBox.information(self, "Radar atualizado", "Você já está usando a versão mais recente.")
-        except (CredentialError, UpdateError) as exc:
+        except UpdateError as exc:
             QMessageBox.warning(self, "Atualização indisponível", str(exc))
 
     def install(self, release):
-        answer = QMessageBox.question(
-            self, "Atualização disponível",
-            f"A versão {release.version} está disponível.\n\n{release.notes[:800]}\n\nBaixar e instalar agora?"
-        )
-        if answer != QMessageBox.Yes: return
+        prompt = QMessageBox(self)
+        prompt.setWindowTitle("Nova atualização disponível")
+        prompt.setText(f"Radar de Lotes v{release.version} está disponível.")
+        prompt.setInformativeText(f"{release.notes[:800]}\n\nDeseja baixar e instalar agora?")
+        update_now = prompt.addButton("ATUALIZAR AGORA", QMessageBox.AcceptRole)
+        prompt.addButton("DEPOIS", QMessageBox.RejectRole)
+        prompt.exec()
+        if prompt.clickedButton() is not update_now: return
         try:
             updater = GitHubUpdater(); installer = updater.download_verified(release)
             updater.launch_installer(installer)
             QApplication.quit()
-        except (CredentialError, UpdateError, OSError) as exc:
+        except (UpdateError, OSError) as exc:
             QMessageBox.warning(self, "Falha na atualização", str(exc))
 
 
@@ -304,10 +289,6 @@ class MainWindow(QMainWindow):
         UpdateDialog(self.db, self).exec()
 
     def check_updates_silently(self):
-        try:
-            if not load_token(): return
-        except CredentialError:
-            return
         self.update_worker = UpdateWorker(); self.update_worker.done.connect(self.update_checked)
         self.update_worker.start()
 

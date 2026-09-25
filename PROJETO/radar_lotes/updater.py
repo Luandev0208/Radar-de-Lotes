@@ -8,11 +8,8 @@ import tempfile
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
-
 import requests
 
-from .credentials import load_token
 from .version import __version__
 
 
@@ -69,17 +66,11 @@ def parse_release(payload: dict) -> ReleaseInfo:
 
 
 class GitHubUpdater:
-    def __init__(self, token_loader: Callable[[], str | None] = load_token,
-                 session: requests.Session | None = None):
-        self.token_loader = token_loader
+    def __init__(self, session: requests.Session | None = None):
         self.session = session or requests.Session()
 
     def _headers(self, binary=False) -> dict[str, str]:
-        token = self.token_loader()
-        if not token:
-            raise UpdateError("Credencial do GitHub não configurada. Abra Configurações → Atualizações.")
         return {
-            "Authorization": f"Bearer {token}",
             "Accept": "application/octet-stream" if binary else "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
             "User-Agent": "Radar-de-Lotes-Updater",
@@ -91,14 +82,7 @@ class GitHubUpdater:
             response.raise_for_status()
             return parse_release(response.json())
         except requests.RequestException as exc:
-            raise UpdateError("Não foi possível consultar atualizações. Verifique a internet e a credencial.") from exc
-
-    def verify_credential(self) -> None:
-        try:
-            response = self.session.get(API_ROOT, headers=self._headers(), timeout=20)
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            raise UpdateError("A credencial não conseguiu acessar o repositório privado.") from exc
+            raise UpdateError("Não foi possível consultar atualizações. Verifique sua conexão com a internet.") from exc
 
     def _download(self, url: str, target: Path) -> None:
         try:
@@ -116,8 +100,13 @@ class GitHubUpdater:
         UPDATE_DIR.mkdir(parents=True, exist_ok=True)
         checksum_path = UPDATE_DIR / CHECKSUM_NAME
         installer_path = UPDATE_DIR / INSTALLER_NAME
-        self._download(release.checksum_url, checksum_path)
-        self._download(release.installer_url, installer_path)
+        try:
+            self._download(release.checksum_url, checksum_path)
+            self._download(release.installer_url, installer_path)
+        except UpdateError:
+            checksum_path.unlink(missing_ok=True)
+            installer_path.unlink(missing_ok=True)
+            raise
         if not verify_installer(installer_path, checksum_path.read_text(encoding="utf-8")):
             installer_path.unlink(missing_ok=True)
             checksum_path.unlink(missing_ok=True)

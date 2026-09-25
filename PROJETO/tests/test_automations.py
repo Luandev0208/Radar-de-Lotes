@@ -3,50 +3,65 @@ from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
 AUTOMATIONS = ROOT / "AUTOMACOES"
+RADAR = AUTOMATIONS / "RADAR.bat"
 
 
-def text(name):
-    return (AUTOMATIONS / name).read_text(encoding="utf-8")
+def radar_text():
+    return RADAR.read_text(encoding="utf-8")
 
 
-def test_all_required_automation_files_exist():
-    required = {
-        "RADAR.bat", "01_EXECUTAR_RADAR.bat", "02_RODAR_TESTES.bat",
-        "03_GERAR_EXE.bat", "04_GERAR_INSTALADOR.bat",
-        "05_PREPARAR_TESTE_COMPLETO.bat", "06_CRIAR_BRANCH_NOVA_VERSAO.bat",
-        "07_VER_STATUS_GIT.bat", "08_CRIAR_BACKUP_MAIN_ANTIGA.bat",
-        "09_PUBLICAR_VERSAO_APROVADA.bat", "10_PUBLICAR_RELEASE.bat",
-        "11_ABRIR_ENTREGA.bat", "12_ABRIR_LOGS.bat",
-        "14_VERIFICAR_AMBIENTE.bat", "TUDO_EM_UM_APOS_APROVACAO.bat",
-        "README_AUTOMACOES.txt", "config.bat", "_comum.bat",
-    }
-    assert required <= {path.name for path in AUTOMATIONS.iterdir()}
+def test_radar_is_the_only_batch_entrypoint():
+    assert RADAR.exists()
+    assert [path.name for path in AUTOMATIONS.glob("*.bat")] == ["RADAR.bat"]
 
 
-def test_publish_flows_have_confirmation_tests_backup_and_no_secrets():
-    publish = text("09_PUBLICAR_VERSAO_APROVADA.bat")
-    release = text("10_PUBLICAR_RELEASE.bat")
-    complete = text("TUDO_EM_UM_APOS_APROVACAO.bat")
-    combined = "\n".join(path.read_text(encoding="utf-8", errors="ignore") for path in AUTOMATIONS.glob("*.bat"))
-    assert "PUBLICAR" in publish and "02_RODAR_TESTES.bat" in publish
-    assert "08_CRIAR_BACKUP_MAIN_ANTIGA.bat" in publish
-    assert "PUBLICAR" in complete and "10_PUBLICAR_RELEASE.bat" in complete
-    assert "gh run watch" in release and "gh release view" in release
-    assert "gh release create" not in release and "git tag" not in release
-    assert "gh release upload" not in release
-    assert "github_pat_" not in combined.lower() and "ghp_" not in combined.lower()
+def test_menu_has_all_options_and_embedded_help():
+    content = radar_text()
+    for option in range(1, 16):
+        assert f"{option} -" in content
+    assert "0 - Sair" in content
+    assert ":ajuda" in content
+    assert "Seguras antes da aprovacao" in content
 
 
-def test_test_build_does_not_publish_or_change_main():
-    build = text("05_PREPARAR_TESTE_COMPLETO.bat").lower()
-    assert "gh release" not in build
-    assert "push origin main" not in build
-    assert "switch main" not in build
-    assert "checkout main" not in build
-    assert "entrega_para_teste" not in build or "delivery_dir" in build
+def test_automation_is_version_independent():
+    content = radar_text().lower()
+    assert "projeto\\version" in content
+    assert "dev-v!version!" in content
+    assert "remote get-url origin" in content
+    assert "1.4.1" not in content and "1.4.2" not in content
 
 
-def test_github_actions_is_the_only_release_publisher():
+def test_test_preparation_does_not_publish_or_change_main():
+    content = radar_text().lower()
+    block = content.rsplit("\n:preparar_teste", 1)[1].split("\n:nova_versao", 1)[0]
+    assert "push origin main" not in block
+    assert "switch main" not in block
+    assert "gh release" not in block
+    assert "main, tag e release nao foram alterados" in block
+
+
+def test_publish_flow_is_protected_and_actions_is_only_release_publisher():
+    content = radar_text()
+    lower = content.lower()
+    assert "PUBLICAR" in content
+    assert ":git_limpo" in lower and ":backup_main" in lower
+    assert "merge --ff-only" in lower
+    assert "push origin main" in lower
+    assert "push --force" not in lower and "force push" not in lower
+    assert "gh release create" not in lower and "gh release upload" not in lower
+    assert "gh run watch" in lower and "gh release view" in lower
+    assert "github_pat_" not in lower and "ghp_" not in lower
+
+
+def test_everything_flow_stops_on_critical_errors():
+    block = radar_text().lower().rsplit("\n:tudo", 1)[1]
+    assert "digite exatamente publicar" in block
+    assert block.count("|| exit /b 1") >= 8
+    assert "acompanhar_release" in block
+
+
+def test_github_actions_is_the_only_final_release_publisher():
     workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "gh release create" in workflow
     assert "SHA256SUMS.txt" in workflow
@@ -54,16 +69,8 @@ def test_github_actions_is_the_only_release_publisher():
     assert "concurrency:" in workflow
 
 
-def test_dev_workflow_builds_artifact_without_publishing_release():
-    workflow = (ROOT / ".github" / "workflows" / "test-build.yml").read_text(encoding="utf-8")
-    assert "dev-v*" in workflow
-    assert "actions/upload-artifact" in workflow
-    assert "gh release" not in workflow
-
-
 def test_windows_build_is_pinned_to_python_312_and_onefile():
-    exe = text("03_GERAR_EXE.bat")
-    common = text("_comum.bat")
-    assert "--onefile" in exe
-    assert "py -3.12" in common
-    assert "--self-test" in exe
+    content = radar_text()
+    assert "py -3.12" in content
+    assert "--onefile" in content
+    assert "--self-test" in content

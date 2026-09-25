@@ -1,4 +1,4 @@
-name: Gerar Release privada
+name: Gerar Release pública
 
 on:
   workflow_dispatch:
@@ -61,7 +61,7 @@ jobs:
             PROJETO/installer_output/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
-      - name: Publicar Release privada
+      - name: Publicar Release pública
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
