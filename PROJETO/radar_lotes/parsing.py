@@ -2,10 +2,23 @@ import re
 import unicodedata
 from urllib.parse import quote_plus
 
-
 KNOWN_NEIGHBORHOODS = (
     "Nacional", "Parque Xangri-lá", "Xangri-lá",
     "Vale das Amendoeiras", "Bom Jesus", "Arvoredo",
+)
+
+METRO_CITIES = (
+    "Belo Horizonte",
+    "Contagem",
+    "Betim",
+    "Ribeirão das Neves",
+    "Ibirité",
+    "Santa Luzia",
+    "Sabará",
+    "Nova Lima",
+    "Vespasiano",
+    "Lagoa Santa",
+    "Pedro Leopoldo",
 )
 
 
@@ -21,7 +34,8 @@ def parse_price(value):
     if isinstance(value, (int, float)):
         return float(value)
     raw = str(value).strip().lower()
-    multiplier = 1_000_000 if re.search(r"\bmi(?:lha[oõ]es?)?\b", plain(raw)) else (1000 if re.search(r"\bmil\b", raw) else 1)
+    simple = plain(raw)
+    multiplier = 1_000_000 if re.search(r"\bmi(?:lha[oõ]es?)?\b", simple) else (1000 if re.search(r"\bmil\b", simple) else 1)
     match = re.search(r"\d[\d.,\s]*", raw)
     if not match:
         return None
@@ -36,9 +50,10 @@ def parse_price(value):
         if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) == 3):
             token = "".join(parts)
     try:
-        return float(token) * multiplier
+        result = float(token) * multiplier
     except ValueError:
         return None
+    return result if result > 0 else None
 
 
 def parse_area(text):
@@ -54,7 +69,12 @@ def parse_area(text):
 
 
 def extract_price(text):
-    match = re.search(r"R\$\s*\d[\d.,\s]*|\b\d+(?:[.,]\d+)?\s*(?:mil|mi(?:lh[aã]o|lh[oõ]es)?)\b", str(text or ""), re.I)
+    source = str(text or "")
+    match = re.search(
+        r"R\$\s*\d[\d.,\s]*|\b\d+(?:[.,]\d+)?\s*(?:mil|mi(?:lh[aã]o|lh[oõ]es)?)\b",
+        source,
+        re.I,
+    )
     return parse_price(match.group(0)) if match else None
 
 
@@ -132,30 +152,62 @@ def find_neighborhood(*texts, candidates=None):
     return ""
 
 
-def _location_parts(address="", neighborhood="", city="", state="MG"):
-    values = [x.strip(" ,;-") for x in re.split(r"[,;\n]+", str(address or "")) if x.strip(" ,;-")]
-    values += [str(neighborhood or "").strip(), str(city or "").strip(), str(state or "").strip()]
+def find_city(*texts):
+    combined = plain(" ".join(str(x or "") for x in texts))
+    for city in METRO_CITIES:
+        if plain(city) in combined:
+            return city
+    return ""
+
+
+def _valid_coordinate(value, minimum, maximum):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if minimum <= number <= maximum:
+        return number
+    return None
+
+
+def maps_query(address="", neighborhood="", city="", state="MG", latitude=None, longitude=None):
+    lat = _valid_coordinate(latitude, -90, 90)
+    lon = _valid_coordinate(longitude, -180, 180)
+    if lat is not None and lon is not None:
+        return "https://www.google.com/maps/search/?api=1&query=" + quote_plus(f"{lat:.7f},{lon:.7f}")
+
+    city = str(city or "").strip()
+    address = str(address or "").strip()
+    neighborhood = str(neighborhood or "").strip()
+
+    if not city:
+        city = find_city(address, neighborhood)
+    if not city:
+        return ""
+
+    values = [x.strip(" ,;-") for x in re.split(r"[,;\n]+", address) if x.strip(" ,;-")]
+    values += [neighborhood, city, state, "Brasil"]
+
     parts = []
     normalized = []
     for value in values:
+        value = str(value or "").strip()
         key = plain(value)
         if not key:
             continue
-        if any(key == existing or key in existing or existing in key for existing in normalized):
+        if any(key == old or key in old or old in key for old in normalized):
             continue
         parts.append(value)
         normalized.append(key)
-    return parts
 
-
-def maps_query(address="", neighborhood="", city="", state="MG"):
-    parts = _location_parts(address, neighborhood, city, state)
     if not parts:
         return ""
     return "https://www.google.com/maps/search/?api=1&query=" + quote_plus(", ".join(parts))
 
 
-def location_is_approximate(address=""):
+def location_is_approximate(address="", latitude=None, longitude=None):
+    if _valid_coordinate(latitude, -90, 90) is not None and _valid_coordinate(longitude, -180, 180) is not None:
+        return False
     source = plain(address)
     if not source:
         return True

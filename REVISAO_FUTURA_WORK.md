@@ -1,96 +1,110 @@
 # REGISTRO PARA REVISÃO FUTURA NO WORK — Radar de Lotes
 
-Base usada: v1.4.3.
-Versão de desenvolvimento criada neste chat: v1.5.0.
-Branch: dev-v1.5.0.
+Base histórica: v1.4.3.
+Linha atual de desenvolvimento: v1.5.0 e v1.5.1 de teste do updater.
 
-## Objetivo deste arquivo
-Quando houver tokens disponíveis no Work, usar este registro para auditar a implementação real, testar em Windows e corrigir qualquer ponto incompleto. Não reconstruir o projeto do zero.
+Este arquivo deve ser entregue ao Work futuramente para AUDITAR e CORRIGIR o que já foi implementado, sem reconstruir o projeto do zero.
 
-## Alterações implementadas
-1. Busca com filtros escolhidos na hora:
-   - cidade;
-   - múltiplos bairros livres;
-   - preço mínimo/máximo;
-   - área mínima/máxima;
-   - dimensões;
-   - topografia;
-   - murado.
-   - O perfil rígido antigo deixou de comandar a classificação e a aba Novos.
-   - Filtros usados ficam salvos para buscas agendadas; sem filtros salvos, a busca agendada não inventa critérios.
+## Alterações acumuladas
 
-2. Dados dos anúncios:
-   - parsing ampliado para dimensões, topografia, murado, CAB e CAM explícitos, contatos, preço e área;
-   - bairros podem vir dos filtros, não apenas da lista antiga;
-   - CAB/CAM não são inferidos quando ausentes;
-   - deduplicação continua exigindo evidências fortes;
-   - anti-bot/login/CAPTCHA continuam sem bypass.
+### Busca com filtros
+- Removido o perfil rígido antigo como regra principal.
+- Busca manual abre filtros.
+- Região padrão agora significa Belo Horizonte e Região Metropolitana, não "qualquer lugar" quando cidade fica vazia.
+- Lista de cidades metropolitanas usada para validação da localização.
+- Bairros livres, preço mínimo/máximo, área mínima/máxima, dimensões, topografia e murado.
+- Checkbox "Mostrar somente anúncios com preço informado", ligado por padrão.
+- Filtros salvos para execução agendada.
+- Sem filtros salvos, a tarefa agendada não inventa uma busca.
 
-3. Google Maps:
-   - normalização de endereço, bairro, cidade e MG;
-   - remoção de duplicações;
-   - diferencia localização completa de aproximada;
-   - botão mostra APROX. quando não há endereço completo.
+### Qualidade dos resultados
+- Resultados precisam ser lote/terreno.
+- Páginas genéricas de busca/categoria/resultados são rejeitadas por heurística de URL.
+- Links com sinais de anúncio individual são priorizados.
+- Resultados públicos fora de BH/RMBH são rejeitados.
+- Objetivo específico: impedir que VER ANÚNCIO leve apenas a uma página de pesquisa da OLX/Viva/ZAP/etc.
 
-4. Atualizador:
-   - botão fixo ATUALIZAÇÕES removido;
-   - verificação em background a cada janela segura;
-   - aviso pequeno e clicável apenas se houver versão nova;
-   - SHA-256 mantido;
-   - updater público, sem PAT/token;
-   - helper espera PID antigo encerrar antes de iniciar o Setup;
-   - usa /NORESTARTAPPLICATIONS e RestartApplications=no;
-   - apenas uma abertura do app após o Setup.
+### Preço
+- Por padrão, item sem preço informado é rejeitado.
+- Preço é aceito apenas quando aparece explicitamente em offers/price público ou texto com formato claro de preço.
+- UI identifica preço encontrado no anúncio.
+- Usuário pode permitir anúncios sem preço desmarcando o filtro.
 
-5. Windows App Control / Error 4551:
-   - mantido instalador único legado para compatibilidade com atualizadores antigos;
-   - criado segundo pacote ZIP compatível usando Inno Setup UseSetupLdr=no;
-   - esse modo gera Setup.exe + Setup-*.bin e evita o SetupLdr executado da pasta TEMP;
-   - updater v1.5.0 prefere o pacote compatível quando ele existe;
-   - nenhuma política de segurança é desativada ou burlada.
-   - IMPORTANTE PARA REVISÃO: testar fisicamente no PC que apresentou Error 4551.
+### Google Maps
+- Adicionados latitude e longitude ao modelo e ao SQLite.
+- Schema passou para v3 com backup pré-migração.
+- JSON-LD tenta capturar geo.latitude/geo.longitude.
+- Se houver coordenadas, Maps abre pelas coordenadas.
+- Sem coordenadas, consulta usa endereço + bairro + cidade + MG + Brasil.
+- Se não houver cidade confirmável, não gerar botão de Maps em vez de abrir local errado.
+- Localização aproximada continua indicada quando não há número/coordenadas.
 
-6. Build e GitHub Actions:
-   - build_windows.bat não roda pytest novamente;
-   - GitHub Actions mantém job de testes antes do build;
-   - cache de pip adicionado;
-   - Release passa a carregar EXE legado, ZIP de compatibilidade e SHA256SUMS.txt.
+### Updater
+- Verificação discreta em background.
+- Sem botão fixo de atualizações.
+- Aviso pequeno clicável apenas quando há versão nova.
+- SHA-256 mantido.
+- Updater público sem PAT/token.
+- Helper espera PID antigo encerrar.
+- /NORESTARTAPPLICATIONS e RestartApplications=no.
+- Uma única abertura explícita após instalação.
 
-7. Ferramentas locais:
-   - AUTOMACOES/ adicionada ao .gitignore;
-   - template e instalador do RADAR.bat ficam em FERRAMENTAS_DESENVOLVIMENTO;
-   - após instalar localmente, trocar branch não substitui o BAT;
-   - Inno detectado também em %LOCALAPPDATA%;
-   - opção 15 pede PUBLICAR uma vez e evita repetir testes/EXE/instalador;
-   - backup remoto é idempotente;
-   - sem force push;
-   - pytest local usa --basetemp exclusivo para reduzir o PermissionError de cleanup.
+### Windows App Control / Error 4551
+- Mantido instalador EXE tradicional para compatibilidade com versões antigas.
+- Criado pacote `Radar-de-Lotes-Instalador-Compatibilidade.zip`.
+- Pacote compatível usa `UseSetupLdr=no`.
+- Updater novo prefere o pacote compatível quando disponível.
+- NÃO desativar/contornar WDAC, AppLocker, Smart App Control ou segurança do Windows.
+- Teste físico obrigatório no PC do pai que apresentou Error 4551.
 
-8. Line endings:
-   - .gitattributes define CRLF para BAT/CMD/PS1 e LF para Python/YAML/Markdown.
+### RADAR.bat / automações de desenvolvimento
+- AUTOMACOES/ local e no .gitignore.
+- Template versionado em FERRAMENTAS_DESENVOLVIMENTO.
+- Trocar de branch não substitui o BAT local.
+- Inno Setup detectado também em %LOCALAPPDATA%.
+- Opção 15 pede PUBLICAR uma vez.
+- Evita repetir testes/builds caros.
+- Backup remoto idempotente.
+- Sem force push.
+- pytest local usa basetemp próprio.
+- .gitattributes para CRLF/LF previsível.
 
-## Pontos que o Work deve auditar depois
-- Rodar suíte completa de testes e revisar testes de regressão.
-- Testar o ZIP UseSetupLdr=no no PC do pai que bloqueou o Setup temporário.
-- Testar atualização real v1.5.0 -> versão seguinte usando o pacote compatível.
-- Confirmar se todos os portais ainda expõem JSON-LD suficiente; melhorar apenas por meios públicos permitidos.
-- Revisar UX dos filtros em diferentes resoluções.
-- Auditar a geração do pacote ZIP e SHA no GitHub Actions.
-- Revisar o BAT em CMD real e os caminhos com espaços.
-- Revisar assinatura digital futuramente, caso exista certificado legítimo; não contornar Windows App Control.
-- Auditar identidade visual/ícone quando incorporado ao build.
+### Entrega completa
+O artifact antigo tinha somente instaladores. Isso confundiu o usuário porque não continha código/BATs.
 
-## v1.5.1 — versão mínima para teste real do updater
+O workflow de teste agora também deve produzir:
+`Radar-de-Lotes-vX.Y.Z-COMPLETO.zip`
 
-Branch criada a partir da dev-v1.5.0, sem novas features.
-Objetivo exclusivo: validar no PC do pai o fluxo real v1.5.0 -> v1.5.1, incluindo:
-- detecção automática da nova versão;
-- aviso discreto clicável;
-- download do pacote compatível;
-- validação SHA-256;
-- encerramento da instância antiga;
-- instalação sem reinício concorrente;
-- abertura única da v1.5.1;
-- preservação do banco e dos dados do usuário.
+Conteúdo esperado:
+- AUTOMACOES/RADAR.bat;
+- FERRAMENTAS_DESENVOLVIMENTO;
+- PROJETO completo;
+- testes/workflows;
+- ENTREGA_PARA_TESTE;
+- instaladores + SHA-256;
+- este arquivo de revisão.
 
-Nenhuma mudança funcional além do bump de versão e notas de teste deve ser introduzida nesta versão.
+## v1.5.1
+A v1.5.1 continua reservada para o teste real de atualização após a v1.5.0 ser instalada no PC do pai. Ela deve herdar todas as correções da v1.5.0 e mudar o mínimo possível além da versão/notas.
+
+Fluxo a validar:
+v1.5.0 instalada
+→ detectar v1.5.1
+→ aviso discreto
+→ download do pacote compatível
+→ SHA-256
+→ fechar Radar antigo
+→ instalar sem erro _MEI e sem execução bloqueada em TEMP
+→ abrir uma única v1.5.1
+→ preservar banco/status/histórico/filtros.
+
+## Pontos para auditoria futura do Work
+- Testar parsers/conectores com páginas reais atuais sem burlar bloqueios.
+- Revisar heurística de URL de anúncio para reduzir falso positivo e falso negativo.
+- Testar coordenadas/mapas com anúncios reais.
+- Testar migração v2 -> v3 em cópia de banco real.
+- Testar o pacote completo gerado no Actions.
+- Testar BAT em CMD real com caminhos contendo espaços.
+- Testar Error 4551 no PC afetado.
+- Testar updater real 1.5.0 -> 1.5.1.
+- Revisar identidade visual/ícone profissional ainda pendente.

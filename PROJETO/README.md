@@ -1,65 +1,89 @@
-# Radar de Lotes — v1.5.1
+# Radar de Lotes — v1.5.x
 
-Aplicativo local para Windows que organiza lotes em **Novos**, **Interessantes** e **Descartados**, com dados persistidos em SQLite no AppData do usuário.
+Programa local para Windows que organiza anúncios individuais de lotes em **Novos**, **Interessantes** e **Descartados**. Banco, histórico e backups ficam no AppData do usuário.
 
 ## Busca por filtros
 
-A busca não usa mais um perfil rígido de bairros/preço/área. Ao clicar em **BUSCAR AGORA**, o usuário escolhe os filtros da busca naquele momento:
+Ao clicar em **BUSCAR AGORA**, o usuário escolhe os filtros da busca. Não existe mais um perfil rígido obrigatório.
 
-- cidade;
+A região padrão é **Belo Horizonte e Região Metropolitana**. Deixar a cidade sem seleção específica NÃO libera buscas no Brasil inteiro: o Radar continua aceitando somente anúncios cuja localização possa ser confirmada em BH ou em cidades da região metropolitana cadastradas no programa.
+
+Filtros disponíveis:
+- região/cidade;
 - um ou vários bairros;
 - preço mínimo e máximo;
 - área mínima e máxima;
 - dimensões;
 - topografia;
-- murado.
+- murado;
+- opção de mostrar somente anúncios com preço informado, ativada por padrão.
 
-Campos vazios significam que aquele critério não limita a busca. Quando uma informação não está disponível no anúncio, o Radar não inventa o valor e marca o lote para confirmação.
+Os últimos filtros ficam salvos para as buscas agendadas. Se nunca houve filtros definidos, a busca agendada não inventa critérios.
 
-Os últimos filtros escolhidos ficam salvos apenas para permitir buscas agendadas coerentes. Se nunca houve uma busca com filtros definidos, a busca agendada não inventa critérios.
+## Somente anúncios de lotes, não páginas de pesquisa
 
-## Dados dos anúncios
+Os conectores descartam links que parecem páginas de categoria, busca ou resultados. O Radar tenta salvar apenas URLs com sinais fortes de anúncio individual, como páginas de imóvel/anúncio/propriedade ou URLs com identificador de anúncio.
 
-Os conectores usam apenas páginas e dados públicos. O Radar tenta extrair preço, área, dimensões, topografia, murado, endereço, contatos, imobiliária/corretor, descrição, fotos e código do anúncio quando essas informações estão realmente disponíveis.
+Resultados públicos também precisam indicar explicitamente lote/terreno e uma cidade confirmável da Região Metropolitana de Belo Horizonte.
 
-CAB e CAM só são preenchidos quando aparecem explicitamente no material público consultado. CAPTCHA, login, bloqueios e proteções dos portais não são contornados.
+O objetivo é evitar casos em que **VER ANÚNCIO** abre apenas uma busca vazia da OLX ou de outro portal.
+
+## Preço confirmado
+
+Por padrão, anúncios sem preço informado são ignorados. Um preço só é preenchido quando aparece explicitamente em dado estruturado público do anúncio ou em texto com formato de preço, como **R$ 395.000** ou **395 mil**.
+
+A interface mostra quando o preço foi encontrado no anúncio. O usuário pode desativar esse filtro caso queira analisar anúncios sem preço.
 
 ## Google Maps
 
-O Maps recebe endereço, bairro, cidade e estado normalizados. Endereços incompletos são identificados como localização aproximada e o botão mostra **APROX.** para não dar falsa precisão.
+O Radar agora guarda latitude e longitude quando o próprio anúncio disponibiliza coordenadas públicas em JSON-LD. Quando existem coordenadas válidas, o Google Maps abre diretamente nelas.
+
+Sem coordenadas, o Maps usa endereço + bairro + cidade + MG + Brasil. Se não houver cidade confirmada, o botão de Maps não é criado, evitando mandar o usuário para outra cidade ou estado. Endereços sem número continuam marcados como aproximados.
+
+A migração para o novo banco adiciona latitude/longitude sem apagar os lotes antigos e faz backup preventivo antes da mudança.
 
 ## Atualizações
 
-O app verifica atualizações públicas em segundo plano. Se não houver versão nova, nenhum botão fixo é mostrado. Quando há uma nova versão, aparece apenas um aviso discreto clicável no topo.
+O app verifica atualizações públicas em segundo plano. Sem versão nova, não exibe botão fixo. Quando existe uma versão nova, mostra apenas um aviso pequeno e clicável.
 
-Downloads continuam sendo validados por SHA-256 e não exigem conta, PAT, token, Git ou GitHub CLI no computador do usuário final.
+O download é validado por SHA-256, não exige conta/PAT/token no PC final e o fluxo espera a instância antiga fechar antes de instalar. O Inno Setup não faz reinício concorrente.
 
-O fluxo de atualização espera a instância antiga encerrar antes de iniciar o instalador e desativa reinícios concorrentes do Inno Setup.
+## Windows App Control
 
-## Compatibilidade com Windows App Control
+O build gera:
+- `Instalar Radar de Lotes.exe`;
+- `Radar-de-Lotes-Instalador-Compatibilidade.zip`;
+- `SHA256SUMS.txt`.
 
-Além do instalador EXE tradicional, o build gera:
+O ZIP de compatibilidade usa Inno Setup com `UseSetupLdr=no` para evitar o Setup Loader executado pela pasta TEMP. Nenhuma política de segurança é desativada ou contornada.
 
-`Radar-de-Lotes-Instalador-Compatibilidade.zip`
+## Pacote COMPLETO de teste
 
-Esse pacote usa Inno Setup com `UseSetupLdr=no`, contendo `Setup.exe` e os arquivos `Setup-*.bin`. Ele evita que o Setup Loader copie e execute o instalador pela pasta TEMP, o que ajuda em máquinas onde uma política de Controle de Aplicativo bloqueia execução a partir de TEMP.
+O GitHub Actions de branch `dev-v*` agora também gera:
 
-Nenhuma política de segurança é desativada ou burlada.
+`Radar-de-Lotes-vX.Y.Z-COMPLETO.zip`
 
-## Ferramentas de desenvolvimento
+Esse arquivo contém:
+- `AUTOMACOES/RADAR.bat`;
+- `FERRAMENTAS_DESENVOLVIMENTO`;
+- todo o `PROJETO`;
+- testes e workflows;
+- `ENTREGA_PARA_TESTE` com instaladores e SHA-256;
+- `REVISAO_FUTURA_WORK.md`;
+- arquivo de orientação.
 
-A pasta `AUTOMACOES/` é local e ignorada pelo Git. Para criar o menu local pela primeira vez, execute:
+Assim, o ZIP completo é diferente do artifact anterior que continha somente os instaladores.
 
-`FERRAMENTAS_DESENVOLVIMENTO\INSTALAR_RADAR_LOCAL.bat`
+## Ferramentas locais
 
-Isso copia o `RADAR.bat` para `AUTOMACOES\RADAR.bat`. Como ele fica fora do controle de versão, trocar de branch não substitui o BAT enquanto ele está rodando.
+`AUTOMACOES/` permanece ignorada pelo Git para que trocar de branch não substitua o BAT durante sua própria execução.
 
-O menu mantém as opções individuais e a opção **15 - FAZER TUDO DE UMA VEZ**. A opção 15 pede `PUBLICAR` uma única vez e evita repetir testes/builds caros.
+O template versionado fica em:
+`FERRAMENTAS_DESENVOLVIMENTO/RADAR_LOCAL_TEMPLATE.bat`
 
-## Dados e backups
+E o instalador local em:
+`FERRAMENTAS_DESENVOLVIMENTO/INSTALAR_RADAR_LOCAL.bat`.
 
-Banco, logs e backups ficam fora da pasta do programa, em AppData, e não são apagados ao atualizar. Migrações continuam com backup preventivo.
+## Segurança e fontes
 
-## Revisão futura
-
-O arquivo `REVISAO_FUTURA_WORK.md` registra tudo que foi alterado nesta versão e os pontos que devem ser auditados posteriormente pelo Work.
+O Radar não burla CAPTCHA, login, anti-bot, AppLocker, WDAC ou outras proteções. Quando uma fonte não fornece determinada informação publicamente, o campo permanece sem confirmação.

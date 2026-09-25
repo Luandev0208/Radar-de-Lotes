@@ -1,6 +1,6 @@
 # Radar de Lotes 1.5.1
 
-- Versão mínima criada especificamente para testar a atualização automática da v1.5.0 para a v1.5.1.
-- Nenhuma alteração na lógica de busca, filtros, banco, Maps ou automações.
-- Mantido o novo fluxo de atualização da v1.5.0, incluindo pacote compatível com Windows App Control, SHA-256 e reinício único do aplicativo.
-- Depois da atualização, o Radar deve abrir mostrando a versão 1.5.1 e a mensagem de atualização concluída.
+- Versão mínima destinada ao teste real de atualização automática da v1.5.0 para v1.5.1.
+- Herda as correções da v1.5.0 para filtros, restrição a BH/RMBH, preço confirmado, anúncios individuais e Google Maps com coordenadas.
+- Mantém o pacote compatível com Windows App Control, SHA-256 e reinício único.
+- Não adiciona nova regra funcional além das correções já incorporadas na base e do bump de versão.

@@ -6,14 +6,14 @@ from datetime import datetime
 from PySide6.QtCore import QThread, Signal, Qt, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QFrame,
+    QApplication, QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QFrame,
     QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton,
     QScrollArea, QVBoxLayout, QWidget,
 )
 
 from .database import Database
 from .models import Listing
-from .parsing import location_is_approximate, maps_query
+from .parsing import METRO_CITIES, location_is_approximate, maps_query
 from .search import SearchFilters, run_search
 from .updater import GitHubUpdater, UpdateError, is_newer, update_check_due
 from .version import __version__
@@ -56,13 +56,22 @@ class SearchFilterDialog(QDialog):
         super().__init__(parent)
         previous = SearchFilters.from_dict(previous)
         self.setWindowTitle("Filtros da busca")
-        self.resize(520, 430)
+        self.resize(560, 500)
         form = QFormLayout(self)
 
-        self.city = QLineEdit(previous.city)
-        self.city.setPlaceholderText("Ex.: Contagem")
+        self.city = QComboBox()
+        self.city.addItem("Belo Horizonte e Região Metropolitana", "")
+        for city in METRO_CITIES:
+            self.city.addItem(city, city)
+        if previous.city:
+            index = self.city.findData(previous.city)
+            if index >= 0:
+                self.city.setCurrentIndex(index)
+
         self.neighborhoods = QLineEdit(", ".join(previous.neighborhoods))
-        self.neighborhoods.setPlaceholderText("Ex.: Nacional, Xangri-lá. Deixe vazio para qualquer bairro")
+        self.neighborhoods.setPlaceholderText(
+            "Ex.: Nacional, Xangri-lá. Vazio = qualquer bairro da região"
+        )
 
         self.min_price = QDoubleSpinBox()
         self.max_price = QDoubleSpinBox()
@@ -97,7 +106,10 @@ class SearchFilterDialog(QDialog):
         if previous.walled:
             self.walled.setCurrentText(previous.walled)
 
-        form.addRow("Cidade", self.city)
+        self.require_price = QCheckBox("Mostrar somente anúncios com preço informado")
+        self.require_price.setChecked(previous.require_price)
+
+        form.addRow("Região / cidade", self.city)
         form.addRow("Bairros", self.neighborhoods)
         form.addRow("Preço mínimo", self.min_price)
         form.addRow("Preço máximo", self.max_price)
@@ -106,10 +118,12 @@ class SearchFilterDialog(QDialog):
         form.addRow("Dimensões", self.dimensions)
         form.addRow("Topografia", self.topography)
         form.addRow("Murado", self.walled)
+        form.addRow("", self.require_price)
 
         hint = QLabel(
-            "Os filtros valem para esta busca. Dados que o anúncio não informa não são inventados; "
-            "o lote pode aparecer marcado para confirmação."
+            "A busca fica sempre limitada a Belo Horizonte e Região Metropolitana. "
+            "O Radar tenta guardar somente anúncios individuais de lotes, não páginas de pesquisa. "
+            "Por padrão, anúncios sem preço informado são ignorados."
         )
         hint.setWordWrap(True)
         hint.setObjectName("muted")
@@ -118,7 +132,7 @@ class SearchFilterDialog(QDialog):
         actions = QHBoxLayout()
         cancel = QPushButton("CANCELAR")
         cancel.clicked.connect(self.reject)
-        search = QPushButton("BUSCAR COM ESTES FILTROS")
+        search = QPushButton("BUSCAR LOTES")
         search.setObjectName("primary")
         search.clicked.connect(self.accept)
         actions.addWidget(cancel)
@@ -130,7 +144,7 @@ class SearchFilterDialog(QDialog):
             part.strip() for part in self.neighborhoods.text().split(",") if part.strip()
         )
         return SearchFilters(
-            city=self.city.text().strip(),
+            city=str(self.city.currentData() or ""),
             neighborhoods=neighborhoods,
             min_price=self.min_price.value() or None,
             max_price=self.max_price.value() or None,
@@ -139,8 +153,8 @@ class SearchFilterDialog(QDialog):
             dimensions=self.dimensions.text().strip(),
             topography="" if self.topography.currentText() == "Qualquer" else self.topography.currentText(),
             walled="" if self.walled.currentText() == "Qualquer" else self.walled.currentText(),
+            require_price=self.require_price.isChecked(),
         )
-
 
 class UpdateDialog(QDialog):
     def __init__(self, db, release, parent=None):
@@ -247,7 +261,7 @@ class DetailsDialog(QDialog):
             address = value(row["address"], value(row["neighborhood"]))
             approximate = (
                 "\nLocalização aproximada — o anúncio não informa endereço completo."
-                if location_is_approximate(row["address"]) else ""
+                if location_is_approximate(row["address"], row["latitude"], row["longitude"]) else ""
             )
             details = QLabel(
                 f"Área: {value(f'{row['area']:g} m²' if row['area'] else '')}\n"
@@ -324,10 +338,10 @@ class DetailsDialog(QDialog):
             btn.clicked.connect(lambda: webbrowser.open(row["url"]))
             links.addWidget(btn)
 
-        map_url = maps_query(row["address"], row["neighborhood"], row["city"], "MG")
+        map_url = maps_query(row["address"], row["neighborhood"], row["city"], "MG", row["latitude"], row["longitude"])
         if map_url:
             label = "GOOGLE MAPS"
-            if location_is_approximate(row["address"]):
+            if location_is_approximate(row["address"], row["latitude"], row["longitude"]):
                 label += " (APROX.)"
             btn = QPushButton(label)
             btn.clicked.connect(lambda: webbrowser.open(map_url))
@@ -353,8 +367,10 @@ class ListingCard(QFrame):
         title.setObjectName("cardTitle")
         price = QLabel(money(row["price"]))
         price.setObjectName("price")
+        price_status = QLabel("✅ Preço informado no anúncio" if row["price"] is not None else "❓ Preço não informado")
+        price_status.setObjectName("muted")
         address = value(row["address"], value(row["neighborhood"]))
-        approximate = " (aprox.)" if location_is_approximate(row["address"]) else ""
+        approximate = " (aprox.)" if location_is_approximate(row["address"], row["latitude"], row["longitude"]) else ""
         facts = QLabel(
             f"{value(f'{row['area']:g} m²' if row['area'] else '')} • {value(row['dimensions'])}\n"
             f"{'✅' if row['topography'] else '❓'} Topografia: {value(row['topography'])}   "
@@ -370,7 +386,7 @@ class ListingCard(QFrame):
             btn = QPushButton("VER ANÚNCIO")
             btn.clicked.connect(lambda: webbrowser.open(row["url"]))
             actions.addWidget(btn)
-        map_url = maps_query(row["address"], row["neighborhood"], row["city"], "MG")
+        map_url = maps_query(row["address"], row["neighborhood"], row["city"], "MG", row["latitude"], row["longitude"])
         if map_url:
             btn = QPushButton("GOOGLE MAPS" + (" (APROX.)" if approximate else ""))
             btn.clicked.connect(lambda: webbrowser.open(map_url))
@@ -395,7 +411,7 @@ class ListingCard(QFrame):
             restore.clicked.connect(lambda: self.move("new"))
             actions.addWidget(restore)
 
-        for widget in (badge, title, price, facts):
+        for widget in (badge, title, price, price_status, facts):
             box.addWidget(widget)
         box.addLayout(actions)
 
@@ -560,7 +576,8 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self, "Busca concluída",
             f"{result.new} novos lotes.\n{result.updated} atualizados.\n"
-            f"{result.rejected} fora dos filtros.\n{result.errors} fontes com erro.",
+            f"{result.rejected} ignorados pelos filtros/regras.\n"
+            f"{result.missing_price} sem preço informado.\n{result.errors} fontes com erro.",
         )
 
     def backup(self):
@@ -608,6 +625,7 @@ QPushButton:hover { border-color:#117c67; background:#f1fbf8; }
 QPushButton#primary { color:white; background:#0b7d68; border-color:#0b7d68; }
 QPushButton[active="true"] { color:#0b7d68; border:2px solid #0b7d68; }
 QLineEdit,QDoubleSpinBox,QComboBox { background:white; border:1px solid #cad6e4; border-radius:7px; padding:8px; }
+QCheckBox { padding:6px 2px; }
 """
 
 
