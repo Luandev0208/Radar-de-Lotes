@@ -79,3 +79,18 @@ Quando houver tokens disponíveis no Work, usar este registro para auditar a imp
 - Revisar o BAT em CMD real e os caminhos com espaços.
 - Revisar assinatura digital futuramente, caso exista certificado legítimo; não contornar Windows App Control.
 - Auditar identidade visual/ícone quando incorporado ao build.
+
+## v1.5.1 — versão mínima para teste real do updater
+
+Branch criada a partir da dev-v1.5.0, sem novas features.
+Objetivo exclusivo: validar no PC do pai o fluxo real v1.5.0 -> v1.5.1, incluindo:
+- detecção automática da nova versão;
+- aviso discreto clicável;
+- download do pacote compatível;
+- validação SHA-256;
+- encerramento da instância antiga;
+- instalação sem reinício concorrente;
+- abertura única da v1.5.1;
+- preservação do banco e dos dados do usuário.
+
+Nenhuma mudança funcional além do bump de versão e notas de teste deve ser introduzida nesta versão.
