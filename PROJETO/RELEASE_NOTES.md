@@ -1,11 +1,6 @@
-# Radar de Lotes 1.5.0
+# Radar de Lotes 1.5.1
 
-- Busca manual agora abre filtros escolhidos na hora, sem perfil rígido de bairros/preço/área.
-- Conectores e parsers extraem mais dados públicos sem inventar informações e sem contornar bloqueios.
-- Google Maps usa endereço/bairro/cidade/UF normalizados e marca localização aproximada quando necessário.
-- Atualizações são verificadas em segundo plano e só aparece um aviso discreto quando existe versão nova.
-- Fluxo de atualização aguarda a instância antiga encerrar e desativa reinício concorrente do Inno Setup.
-- Incluído pacote de instalação compatível com ambientes que bloqueiam execução do Setup pela pasta TEMP.
-- Ferramentas de desenvolvimento passam a usar AUTOMACOES local e ignorada pelo Git.
-- RADAR.bat revisado: Inno em LocalAppData, opção 15 sem duplicar testes/builds e apenas uma confirmação PUBLICAR.
-- .gitattributes adicionado para reduzir alterações falsas de LF/CRLF.
+- Versão mínima criada especificamente para testar a atualização automática da v1.5.0 para a v1.5.1.
+- Nenhuma alteração na lógica de busca, filtros, banco, Maps ou automações.
+- Mantido o novo fluxo de atualização da v1.5.0, incluindo pacote compatível com Windows App Control, SHA-256 e reinício único do aplicativo.
+- Depois da atualização, o Radar deve abrir mostrando a versão 1.5.1 e a mensagem de atualização concluída.
