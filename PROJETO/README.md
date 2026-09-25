@@ -1,4 +1,4 @@
-# Radar de Lotes — v1.5.0
+# Radar de Lotes — v1.5.1
 
 Aplicativo local para Windows que organiza lotes em **Novos**, **Interessantes** e **Descartados**, com dados persistidos em SQLite no AppData do usuário.
 
