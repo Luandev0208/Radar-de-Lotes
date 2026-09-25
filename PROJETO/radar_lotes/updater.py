@@ -118,18 +118,28 @@ class GitHubUpdater:
         installer_path = UPDATE_DIR / INSTALLER_NAME
         self._download(release.checksum_url, checksum_path)
         self._download(release.installer_url, installer_path)
-        expected = checksum_for(INSTALLER_NAME, checksum_path.read_text(encoding="utf-8"))
-        actual = hashlib.sha256(installer_path.read_bytes()).hexdigest()
-        if not expected or actual.lower() != expected.lower():
+        if not verify_installer(installer_path, checksum_path.read_text(encoding="utf-8")):
             installer_path.unlink(missing_ok=True)
+            checksum_path.unlink(missing_ok=True)
             raise UpdateError("A verificação de integridade falhou. A atualização não será instalada.")
         return installer_path
 
     @staticmethod
     def launch_installer(path: Path) -> None:
         if sys.platform == "win32":
-            command = f'"{path}" /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS & del /q "{path}"'
-            subprocess.Popen(["cmd.exe", "/d", "/s", "/c", command], close_fds=True,
+            resolved = path.resolve()
+            if resolved.parent != UPDATE_DIR.resolve() or resolved.name != INSTALLER_NAME:
+                raise UpdateError("O instalador não pertence à pasta temporária controlada pelo Radar.")
+            cleanup = UPDATE_DIR / "instalar_e_limpar.cmd"
+            cleanup.write_text(
+                "@echo off\r\n"
+                f'start "" /wait "{resolved}" /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS\r\n'
+                f'del /q "{resolved}"\r\n'
+                f'del /q "{UPDATE_DIR / CHECKSUM_NAME}"\r\n'
+                'del /q "%~f0"\r\n',
+                encoding="utf-8",
+            )
+            subprocess.Popen(["cmd.exe", "/d", "/c", str(cleanup)], close_fds=True,
                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         else:
             subprocess.Popen([str(path), "/SILENT", "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"], close_fds=True)
@@ -141,9 +151,11 @@ def cleanup_stale_updates(max_age_days: int = 7) -> int:
         return 0
     cutoff = datetime.now().timestamp() - max_age_days * 86400
     removed = 0
-    for path in UPDATE_DIR.glob("Instalar*Radar*Lotes*.exe"):
+    candidates = list(UPDATE_DIR.glob("Instalar*Radar*Lotes*.exe"))
+    candidates += [UPDATE_DIR / CHECKSUM_NAME, UPDATE_DIR / "instalar_e_limpar.cmd"]
+    for path in candidates:
         try:
-            if path.stat().st_mtime < cutoff:
+            if path.is_file() and path.stat().st_mtime < cutoff:
                 path.unlink()
                 removed += 1
         except OSError:
@@ -157,3 +169,14 @@ def checksum_for(filename: str, contents: str) -> str | None:
         if match and match.group(2).strip() == filename:
             return match.group(1).lower()
     return None
+
+
+def verify_installer(path: Path, checksum_contents: str, filename: str = INSTALLER_NAME) -> bool:
+    expected = checksum_for(filename, checksum_contents)
+    if not expected:
+        return False
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest().lower() == expected.lower()

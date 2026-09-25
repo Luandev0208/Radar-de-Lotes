@@ -1,10 +1,8 @@
-# Radar de Lotes 1.4.0
+# Radar de Lotes 1.4.1
 
-- Atualização automática segura por Releases privadas do GitHub.
-- Credencial de leitura protegida pelo Gerenciador de Credenciais do Windows.
-- Download do instalador com validação SHA-256 antes da execução.
-- Backup e migrações do SQLite sem apagar lotes, favoritos ou histórico.
-- Executável e tarefas agendadas independentes de Python no computador instalado.
-- Menu local `RADAR.bat` e automações para testes, build, Git, backups e Releases.
-- Estrutura separada entre `PROJETO` e `AUTOMACOES`, com tutorial em português.
-- Limpeza segura do instalador temporário e de atualizações antigas controladas pelo Radar.
+- Identificação visual clara da versão 1.4.1 e confirmação após atualização.
+- GitHub Actions passa a ser o único responsável pela tag e Release final.
+- BAT local acompanha o workflow sem tentar publicar uma Release concorrente.
+- Instalador baixado é validado por SHA-256 e removido após a atualização.
+- Limpeza restrita à pasta temporária controlada pelo Radar, sem tocar em Downloads ou Desktop.
+- SQLite, lotes, status, histórico, configurações, backups, credencial e tarefas são preservados.

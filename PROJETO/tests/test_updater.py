@@ -1,14 +1,18 @@
 from datetime import datetime, timedelta
+import hashlib
+import os
+import time
 
 import pytest
 
 from radar_lotes.updater import (
     CHECKSUM_NAME, INSTALLER_NAME, GitHubUpdater, UpdateError, checksum_for,
-    cleanup_stale_updates, is_newer, parse_release, update_check_due, version_tuple,
+    cleanup_stale_updates, is_newer, parse_release, update_check_due,
+    verify_installer, version_tuple,
 )
 
 
-def release_payload(tag="v1.3.0"):
+def release_payload(tag="v1.4.1"):
     return {
         "tag_name": tag, "name": "Radar", "body": "Notas",
         "assets": [
@@ -23,11 +27,12 @@ def test_semantic_version_comparison():
     assert is_newer("1.3.1", "1.3.0")
     assert not is_newer("1.3.0", "1.3.0")
     assert not is_newer("1.2.9", "1.3.0")
+    assert is_newer("1.4.1", "1.4.0")
 
 
 def test_release_requires_installer_and_checksum():
     info = parse_release(release_payload())
-    assert info.version == "1.3.0" and info.installer_url.endswith("installer")
+    assert info.version == "1.4.1" and info.installer_url.endswith("installer")
     with pytest.raises(UpdateError):
         parse_release({"tag_name": "v1.3.0", "assets": []})
     normalized = release_payload()
@@ -39,6 +44,15 @@ def test_checksum_parsing():
     digest = "a" * 64
     assert checksum_for(INSTALLER_NAME, f"{digest}  {INSTALLER_NAME}\n") == digest
     assert checksum_for(INSTALLER_NAME, f"{digest}  outro.exe\n") is None
+
+
+def test_installer_sha_accepts_correct_and_rejects_incorrect(tmp_path):
+    installer = tmp_path / INSTALLER_NAME
+    installer.write_bytes(b"instalador-v1.4.1")
+    digest = hashlib.sha256(installer.read_bytes()).hexdigest()
+    assert verify_installer(installer, f"{digest}  {INSTALLER_NAME}\n")
+    assert not verify_installer(installer, f"{'0' * 64}  {INSTALLER_NAME}\n")
+    assert not verify_installer(installer, f"{digest}  outro.exe\n")
 
 
 def test_missing_credential_is_friendly():
@@ -57,12 +71,36 @@ def test_cleanup_only_targets_controlled_old_installers(tmp_path, monkeypatch):
     import radar_lotes.updater as updater
     monkeypatch.setattr(updater, "UPDATE_DIR", tmp_path)
     old = tmp_path / "Instalar Radar de Lotes.exe"
+    old_checksum = tmp_path / CHECKSUM_NAME
+    old_helper = tmp_path / "instalar_e_limpar.cmd"
+    fresh = tmp_path / "Instalar Radar de Lotes teste.exe"
     keep = tmp_path / "arquivo-do-usuario.txt"
     old.write_bytes(b"installer")
+    old_checksum.write_text("hash", encoding="utf-8")
+    old_helper.write_text("helper", encoding="utf-8")
+    fresh.write_bytes(b"novo")
     keep.write_text("preservar", encoding="utf-8")
-    old.touch()
-    import os, time
     past = time.time() - 10 * 86400
-    os.utime(old, (past, past))
-    assert cleanup_stale_updates(7) == 1
-    assert not old.exists() and keep.exists()
+    for path in (old, old_checksum, old_helper, keep):
+        os.utime(path, (past, past))
+    assert cleanup_stale_updates(7) == 3
+    assert not old.exists() and not old_checksum.exists() and not old_helper.exists()
+    assert fresh.exists() and keep.exists()
+
+
+def test_windows_helper_only_accepts_controlled_installer(tmp_path, monkeypatch):
+    import radar_lotes.updater as updater
+
+    monkeypatch.setattr(updater, "UPDATE_DIR", tmp_path)
+    monkeypatch.setattr(updater.sys, "platform", "win32")
+    calls = []
+    monkeypatch.setattr(updater.subprocess, "Popen", lambda *args, **kwargs: calls.append((args, kwargs)))
+    installer = tmp_path / INSTALLER_NAME
+    installer.write_bytes(b"ok")
+    GitHubUpdater.launch_installer(installer)
+    helper = (tmp_path / "instalar_e_limpar.cmd").read_text(encoding="utf-8")
+    assert "/wait" in helper and INSTALLER_NAME in helper and CHECKSUM_NAME in helper
+    assert calls
+    outside = tmp_path.parent / INSTALLER_NAME
+    with pytest.raises(UpdateError, match="pasta temporária controlada"):
+        GitHubUpdater.launch_installer(outside)

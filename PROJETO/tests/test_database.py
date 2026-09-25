@@ -108,3 +108,19 @@ def test_migration_preserves_legacy_data_and_creates_backup(tmp_path):
         columns = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
     assert {"phone", "email", "photos"} <= columns
     assert list((tmp_path / "backups").glob("pre-migration-*.db"))
+
+
+def test_reopening_database_preserves_status_history_and_settings(tmp_path):
+    path = tmp_path / "radar.db"
+    db = Database(path)
+    listing_id, _ = db.upsert(Listing("Lote salvo", "Nacional", price=395000, area=360))
+    db.set_status(listing_id, "interesting")
+    db.set_state("github_last_check", "2026-09-25T10:00:00")
+
+    reopened = Database(path)
+    row = reopened.get(listing_id)
+    assert row["status"] == "interesting"
+    assert reopened.get_state("github_last_check") == "2026-09-25T10:00:00"
+    with reopened.connect() as conn:
+        prices = conn.execute("SELECT price FROM price_history WHERE listing_id=?", (listing_id,)).fetchall()
+        assert [price[0] for price in prices] == [395000]

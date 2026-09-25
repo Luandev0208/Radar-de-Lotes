@@ -14,7 +14,7 @@ call "%~dp009_PUBLICAR_VERSAO_APROVADA.bat" || exit /b 1
 call "%~dp010_PUBLICAR_RELEASE.bat" || exit /b 1
 echo ======================================
 echo PUBLICACAO CONCLUIDA COM SEGURANCA
-echo Backup, main, tag, Release e SHA-256: OK
+echo Backup e main: automacoes locais OK
+echo Tag, Release, instalador e SHA-256: GitHub Actions OK
 echo ======================================
 exit /b 0
-

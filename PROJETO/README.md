@@ -1,4 +1,4 @@
-# Radar de Lotes — V1.4
+# Radar de Lotes — V1.4.1
 
 Programa local para Windows que organiza lotes novos, interessantes e descartados. Os dados ficam em SQLite no próprio computador.
 
@@ -42,7 +42,8 @@ Python é necessário apenas para desenvolvimento. Depois da instalação, o ata
 2. Abra `AUTOMACOES\RADAR.bat` e crie uma branch `dev-vX.Y.Z` pela opção 6.
 3. Gere o instalador de teste pela opção 5; isso não altera `main`.
 4. Somente depois da aprovação explícita, use a opção 15 e digite `PUBLICAR`.
-5. O fluxo cria o backup da `main` antiga, testa, compila, publica `main`, tag, SHA-256 e Release privada.
+5. O fluxo cria o backup da `main` antiga, testa, compila e publica a versão aprovada em `main`.
+6. O push de `main` dispara o GitHub Actions, único responsável pelos testes finais, build Windows limpo, tag, SHA-256 e Release privada. O BAT local apenas acompanha o workflow e abre a Release pronta.
 
 `VERSION` é a fonte central de versão. O build gera o arquivo temporário usado pelo Inno Setup.
 
@@ -50,7 +51,7 @@ O instalador cria buscas às 08:00, 14:00 e 20:00 com recuperação automática 
 
 ## Dados e backups
 
-O banco, os logs e os backups ficam no AppData do usuário e não são apagados quando o programa é atualizado.
+O banco, os logs e os backups ficam no AppData do usuário e não são apagados quando o programa é atualizado. O atualizador usa exclusivamente `%TEMP%\RadarDeLotesUpdate`: depois da instalação, remove o instalador e o checksum usados; a limpeza periódica remove apenas arquivos antigos reconhecidos nessa pasta controlada. Downloads, Desktop e instaladores escolhidos manualmente nunca são tocados.
 
 ## Limitação importante da busca automática
 

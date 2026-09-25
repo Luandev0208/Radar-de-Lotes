@@ -1,0 +1,57 @@
+name: Gerar instalador de teste
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'dev-v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-dev.txt
+        working-directory: PROJETO
+      - run: python -m pytest -q
+        working-directory: PROJETO
+
+  build-windows:
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Gerar instalador de teste limpo
+        shell: cmd
+        working-directory: PROJETO
+        run: build_windows.bat
+      - name: Gerar SHA-256
+        shell: pwsh
+        run: |
+          $file = "PROJETO/installer_output/Instalar Radar de Lotes.exe"
+          $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
+          "$hash  Instalar Radar de Lotes.exe" | Set-Content -Encoding ascii "PROJETO/installer_output/SHA256SUMS.txt"
+      - name: Guardar instalador de teste
+        uses: actions/upload-artifact@v4
+        with:
+          name: Radar-de-Lotes-v1.4.1-teste
+          path: |
+            PROJETO/installer_output/Instalar Radar de Lotes.exe
+            PROJETO/installer_output/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30

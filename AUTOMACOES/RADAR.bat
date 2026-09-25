@@ -25,7 +25,7 @@ echo 6 - Criar nova branch de desenvolvimento
 echo 7 - Ver status do Git/GitHub
 echo 8 - Criar backup da versao antiga
 echo 9 - Publicar versao aprovada
-echo 10 - Criar/publicar GitHub Release
+echo 10 - Acompanhar GitHub Actions e abrir Release
 echo 11 - Abrir pasta ENTREGA_PARA_TESTE
 echo 12 - Abrir logs
 echo 13 - Ver tutorial rapido
@@ -53,4 +53,3 @@ if "%OP%"=="15" call "%~dp0TUDO_EM_UM_APOS_APROVACAO.bat"
 echo.
 pause
 goto menu
-

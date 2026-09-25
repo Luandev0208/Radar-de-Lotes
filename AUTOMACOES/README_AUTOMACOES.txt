@@ -18,12 +18,14 @@ DEPOIS DA APROVACAO EXPLICITA
 1. Confirme que a branch dev esta limpa e enviada.
 2. Escolha 15.
 3. Confira a versao e digite exatamente PUBLICAR.
-4. O fluxo testa, cria backup da main antiga, atualiza main e publica a Release.
+4. O fluxo testa, cria backup da main antiga e atualiza main.
+5. O push da main dispara o GitHub Actions, unico responsavel pela tag, SHA-256,
+   instalador final e Release. O BAT apenas acompanha e abre a Release pronta.
 
 OPCOES INDIVIDUAIS
 01 executar em desenvolvimento; 02 testes; 03 EXE; 04 instalador;
 05 pacote para teste; 06 branch dev; 07 status; 08 backup da main;
-09 atualizar main aprovada; 10 tag/Release; 11 entrega; 12 logs;
+09 atualizar main aprovada; 10 acompanhar Actions/Release; 11 entrega; 12 logs;
 14 ambiente; TUDO_EM_UM somente depois da aprovacao.
 
 SEGURANCA
@@ -35,4 +37,3 @@ SEGURANCA
 
 Leia TUTORIAL_CONFIGURACAO_COMPLETA.txt na raiz para a configuracao inicial,
 publicacao, restauracao e solucao de problemas.
-

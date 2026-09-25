@@ -1,4 +1,4 @@
-# Validação — Radar de Lotes V1.3
+# Validação — Radar de Lotes V1.4.1
 
 ## Atualização automática privada
 
@@ -8,11 +8,11 @@
 - Instalador recusado quando o SHA-256 não corresponde.
 - Verificação automática no máximo uma vez a cada 24 horas, além da verificação manual.
 - SQLite fora da pasta instalada, migrações numeradas e backup antes de migrar.
-- Pipeline Windows recompila do zero em Python 3.12 e publica a Release privada.
+- Pipeline Windows recompila do zero em Python 3.12. Somente o GitHub Actions da `main` publica a Release privada.
 
-`python -m pytest -q`: **27 testes aprovados**, incluindo atualização, checksum, preservação de banco legado e segurança/estrutura das automações.
+`python -m pytest -q`: **32 testes aprovados**, incluindo atualização 1.4.0 → 1.4.1, checksum correto/incorreto, preservação do banco, limpeza segura do cache e ausência de publicação duplicada.
 
-## Automações locais V1.4
+## Automações locais V1.4.1
 
 - `RADAR.bat` contém as 15 opções previstas e delega para scripts separados.
 - Build de teste não executa push, tag ou Release.
@@ -20,13 +20,16 @@
 - Backup da `main` antiga é criado e enviado antes do fast-forward da nova versão.
 - Scripts usam Python 3.12 explicitamente e não contêm PAT, senha ou segredo.
 - Workflow GitHub usa a nova pasta `PROJETO`, compila no Windows e guarda artefato validado.
+- O workflow `test-build.yml` gera instalador de teste em `dev-v*` sem tag ou Release.
+- O workflow `release.yml` é o único publicador final e só é disparado pela `main` ou manualmente.
+- O BAT 10 apenas acompanha o GitHub Actions e abre a Release concluída.
 - A sintaxe e os efeitos reais de Git/Inno/Agendador devem ser ensaiados também no computador Windows de desenvolvimento antes da próxima versão normal.
 
 As validações de Credential Manager, Agendador, reinício, atualização sobre instalação anterior e desinstalação exigem Windows/VM real. O GitHub Actions cobre o build Windows e o autoteste do EXE, mas não substitui esse ensaio final do sistema operacional.
 
 ## Validado automaticamente
 
-- 16 testes aprovados.
+- 32 testes aprovados em 25/09/2026.
 - Normalização de `395000`, `395000.00`, `395000,00`, `R$ 395.000`, `R$ 395.000,00` e `395 mil`.
 - Limite de preço preservado em R$ 420.000.
 - Contagem não é usada como bairro.

@@ -31,7 +31,9 @@ def test_publish_flows_have_confirmation_tests_backup_and_no_secrets():
     assert "PUBLICAR" in publish and "02_RODAR_TESTES.bat" in publish
     assert "08_CRIAR_BACKUP_MAIN_ANTIGA.bat" in publish
     assert "PUBLICAR" in complete and "10_PUBLICAR_RELEASE.bat" in complete
-    assert "SHA256" in release and "gh release create" in release
+    assert "gh run watch" in release and "gh release view" in release
+    assert "gh release create" not in release and "git tag" not in release
+    assert "gh release upload" not in release
     assert "github_pat_" not in combined.lower() and "ghp_" not in combined.lower()
 
 
@@ -39,7 +41,24 @@ def test_test_build_does_not_publish_or_change_main():
     build = text("05_PREPARAR_TESTE_COMPLETO.bat").lower()
     assert "gh release" not in build
     assert "push origin main" not in build
+    assert "switch main" not in build
+    assert "checkout main" not in build
     assert "entrega_para_teste" not in build or "delivery_dir" in build
+
+
+def test_github_actions_is_the_only_release_publisher():
+    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "gh release create" in workflow
+    assert "SHA256SUMS.txt" in workflow
+    assert "branches: [main]" in workflow
+    assert "concurrency:" in workflow
+
+
+def test_dev_workflow_builds_artifact_without_publishing_release():
+    workflow = (ROOT / ".github" / "workflows" / "test-build.yml").read_text(encoding="utf-8")
+    assert "dev-v*" in workflow
+    assert "actions/upload-artifact" in workflow
+    assert "gh release" not in workflow
 
 
 def test_windows_build_is_pinned_to_python_312_and_onefile():

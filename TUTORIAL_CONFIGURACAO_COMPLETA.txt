@@ -92,8 +92,12 @@ G. PUBLICAR DEPOIS DA APROVACAO
 3. Confira branch e versao.
 4. Digite exatamente PUBLICAR.
 5. O fluxo repete testes/build, transforma a versao em final, cria
-   backup-vVERSAO-ANTIGA, atualiza main, cria a tag e publica a Release.
-6. A branch dev nao e apagada automaticamente.
+   backup-vVERSAO-ANTIGA e atualiza main.
+6. O push da main dispara o GitHub Actions. Somente ele roda os testes finais
+   em ambiente limpo, compila, calcula SHA-256 e cria a tag/Release privada.
+7. O BAT 10 apenas acompanha o workflow e abre a Release pronta; ele nunca cria
+   uma segunda tag ou Release concorrente.
+8. A branch dev nao e apagada automaticamente.
 
 Nas proximas versoes a aprovacao explicita e obrigatoria. A permissao especial
 usada na criacao inicial destas automacoes nao muda essa regra.
@@ -152,7 +156,8 @@ Testes falhando:
 - A publicacao e bloqueada. Corrija o erro e rode os testes novamente.
 
 Tag ou Release ja existe:
-- Nao sobrescreva silenciosamente. Confira VERSION e a pagina de Releases.
+- Confira VERSION e o log do GitHub Actions. O BAT local nao cria nem substitui
+  Releases; a publicacao oficial pertence exclusivamente ao workflow.
 
 Sem internet:
 - Git, gh e Release falharao com segurança. Tente de novo quando a conexao voltar.
@@ -170,4 +175,3 @@ Uso diario: abra AUTOMACOES\RADAR.bat e escolha uma opcao.
 Antes de alterar: opcao 6.
 Antes da aprovacao: opcao 5.
 Depois da aprovacao explicita: opcao 15 e digite PUBLICAR.
-
