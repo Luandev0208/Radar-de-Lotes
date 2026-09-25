@@ -120,7 +120,7 @@ exit /b 1
 
 :git_limpo
 for /f %%C in ('git -C "%RADAR_ROOT%" status --porcelain ^| find /c /v ""') do set "CHANGED=%%C"
-if not "!CHANGED!"=="0" (echo ERRO: Git possui !CHANGED! arquivo(s) alterado(s). Faça commit antes de continuar. & exit /b 1)
+if not "!CHANGED!"=="0" (echo ERRO: Git possui !CHANGED! arquivos alterados. Faca commit antes de continuar. & exit /b 1)
 exit /b 0
 
 :executar
