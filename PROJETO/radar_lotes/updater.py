@@ -214,9 +214,9 @@ class GitHubUpdater:
             "  goto aguardar_radar\r\n"
             ")\r\n"
             f'start "" /wait "{resolved}" /SILENT /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS\r\n'
-            "set "SETUP_RC=%ERRORLEVEL%"\r\n"
-            "if not "%SETUP_RC%"=="0" (\r\n"
-            "  echo A instalacao falhou ou foi bloqueada pela politica de seguranca do Windows.>"%TEMP%\\RadarDeLotesUpdateErro.txt"\r\n"
+            'set "SETUP_RC=%ERRORLEVEL%"\r\n'
+            'if not "%SETUP_RC%"=="0" (\r\n'
+            '  echo A instalacao falhou ou foi bloqueada pela politica de seguranca do Windows.>"%TEMP%\\RadarDeLotesUpdateErro.txt"\r\n'
             "  exit /b %SETUP_RC%\r\n"
             ")\r\n"
             f'del /q "{UPDATE_DIR / INSTALLER_NAME}" 2>nul\r\n'
