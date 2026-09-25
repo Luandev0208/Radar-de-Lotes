@@ -1,0 +1,19 @@
+.venv/
+build/
+dist/
+installer_output/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.spec
+*.db
+*.sqlite
+*.sqlite3
+backups/
+logs/
+*.log
+.env
+*.token
+*.pat
+Instalar Radar de Lotes*.exe
+RADAR_DE_LOTES_WINDOWS_*.zip
