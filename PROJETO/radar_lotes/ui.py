@@ -54,6 +54,7 @@ class UpdateDialog(QDialog):
         box = QVBoxLayout(self)
         version = QLabel(f"Radar de Lotes v{__version__}")
         version.setObjectName("cardTitle"); box.addWidget(version)
+        box.addWidget(QLabel("Teste de atualização v1.4.3 concluído"))
         explanation = QLabel(
             "O Radar verifica atualizações públicas automaticamente. "
             "Nenhuma conta, senha ou credencial do GitHub é necessária."
