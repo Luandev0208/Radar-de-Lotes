@@ -18,6 +18,7 @@ from .version import __version__
 REPOSITORY = "Luandev0208/Radar-de-Lotes"
 API_ROOT = f"https://api.github.com/repos/{REPOSITORY}"
 INSTALLER_NAME = "Instalar Radar de Lotes.exe"
+INSTALLER_ASSET_NAMES = (INSTALLER_NAME, "Instalar.Radar.de.Lotes.exe")
 CHECKSUM_NAME = "SHA256SUMS.txt"
 
 
@@ -58,10 +59,11 @@ def update_check_due(last_check: str | None, now: datetime | None = None) -> boo
 def parse_release(payload: dict) -> ReleaseInfo:
     tag = str(payload.get("tag_name", ""))
     assets = {asset.get("name"): asset.get("url") for asset in payload.get("assets", [])}
-    if INSTALLER_NAME not in assets or CHECKSUM_NAME not in assets:
+    installer_asset = next((name for name in INSTALLER_ASSET_NAMES if name in assets), None)
+    if not installer_asset or CHECKSUM_NAME not in assets:
         raise UpdateError("A Release não contém o instalador e o arquivo SHA256SUMS.txt esperados.")
     return ReleaseInfo(tag.removeprefix("v"), payload.get("name") or tag,
-                       payload.get("body") or "", assets[INSTALLER_NAME], assets[CHECKSUM_NAME])
+                       payload.get("body") or "", assets[installer_asset], assets[CHECKSUM_NAME])
 
 
 class GitHubUpdater:

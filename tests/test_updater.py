@@ -30,6 +30,9 @@ def test_release_requires_installer_and_checksum():
     assert info.version == "1.3.0" and info.installer_url.endswith("installer")
     with pytest.raises(UpdateError):
         parse_release({"tag_name": "v1.3.0", "assets": []})
+    normalized = release_payload()
+    normalized["assets"][0]["name"] = "Instalar.Radar.de.Lotes.exe"
+    assert parse_release(normalized).installer_url.endswith("installer")
 
 
 def test_checksum_parsing():
