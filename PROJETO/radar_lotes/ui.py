@@ -335,5 +335,10 @@ QLineEdit,QDoubleSpinBox { background:white; border:1px solid #cad6e4; border-ra
 """
 
 
-def run_app():
-    app = QApplication([]); app.setFont(QFont("Segoe UI", 10)); window = MainWindow(); window.show(); app.exec()
+def run_app(updated=False):
+    app = QApplication([]); app.setFont(QFont("Segoe UI", 10)); window = MainWindow(); window.show()
+    if updated:
+        QTimer.singleShot(1200, lambda: QMessageBox.information(
+            window, "Atualização concluída", f"Radar de Lotes {__version__} instalado com sucesso."
+        ))
+    app.exec()

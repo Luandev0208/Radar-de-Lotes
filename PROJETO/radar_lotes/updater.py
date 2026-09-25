@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ API_ROOT = f"https://api.github.com/repos/{REPOSITORY}"
 INSTALLER_NAME = "Instalar Radar de Lotes.exe"
 INSTALLER_ASSET_NAMES = (INSTALLER_NAME, "Instalar.Radar.de.Lotes.exe")
 CHECKSUM_NAME = "SHA256SUMS.txt"
+UPDATE_DIR = Path(tempfile.gettempdir()) / "RadarDeLotesUpdate"
 
 
 class UpdateError(RuntimeError):
@@ -111,10 +113,9 @@ class GitHubUpdater:
             raise UpdateError("Falha ao baixar a atualização.") from exc
 
     def download_verified(self, release: ReleaseInfo) -> Path:
-        update_dir = Path(tempfile.gettempdir()) / "RadarDeLotesUpdate"
-        update_dir.mkdir(parents=True, exist_ok=True)
-        checksum_path = update_dir / CHECKSUM_NAME
-        installer_path = update_dir / INSTALLER_NAME
+        UPDATE_DIR.mkdir(parents=True, exist_ok=True)
+        checksum_path = UPDATE_DIR / CHECKSUM_NAME
+        installer_path = UPDATE_DIR / INSTALLER_NAME
         self._download(release.checksum_url, checksum_path)
         self._download(release.installer_url, installer_path)
         expected = checksum_for(INSTALLER_NAME, checksum_path.read_text(encoding="utf-8"))
@@ -126,8 +127,28 @@ class GitHubUpdater:
 
     @staticmethod
     def launch_installer(path: Path) -> None:
-        subprocess.Popen([str(path), "/SILENT", "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"],
-                         close_fds=True)
+        if sys.platform == "win32":
+            command = f'"{path}" /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS & del /q "{path}"'
+            subprocess.Popen(["cmd.exe", "/d", "/s", "/c", command], close_fds=True,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        else:
+            subprocess.Popen([str(path), "/SILENT", "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"], close_fds=True)
+
+
+def cleanup_stale_updates(max_age_days: int = 7) -> int:
+    """Remove apenas instaladores antigos da pasta temporária controlada pelo Radar."""
+    if not UPDATE_DIR.exists():
+        return 0
+    cutoff = datetime.now().timestamp() - max_age_days * 86400
+    removed = 0
+    for path in UPDATE_DIR.glob("Instalar*Radar*Lotes*.exe"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
+                removed += 1
+        except OSError:
+            continue
+    return removed
 
 
 def checksum_for(filename: str, contents: str) -> str | None:

@@ -10,7 +10,17 @@
 - SQLite fora da pasta instalada, migrações numeradas e backup antes de migrar.
 - Pipeline Windows recompila do zero em Python 3.12 e publica a Release privada.
 
-`python -m pytest -q`: **22 testes aprovados**, incluindo atualização, checksum e preservação de banco legado.
+`python -m pytest -q`: **27 testes aprovados**, incluindo atualização, checksum, preservação de banco legado e segurança/estrutura das automações.
+
+## Automações locais V1.4
+
+- `RADAR.bat` contém as 15 opções previstas e delega para scripts separados.
+- Build de teste não executa push, tag ou Release.
+- Publicação exige branch `dev-vX.Y.Z`, confirmação `PUBLICAR`, testes e Git limpo.
+- Backup da `main` antiga é criado e enviado antes do fast-forward da nova versão.
+- Scripts usam Python 3.12 explicitamente e não contêm PAT, senha ou segredo.
+- Workflow GitHub usa a nova pasta `PROJETO`, compila no Windows e guarda artefato validado.
+- A sintaxe e os efeitos reais de Git/Inno/Agendador devem ser ensaiados também no computador Windows de desenvolvimento antes da próxima versão normal.
 
 As validações de Credential Manager, Agendador, reinício, atualização sobre instalação anterior e desinstalação exigem Windows/VM real. O GitHub Actions cobre o build Windows e o autoteste do EXE, mas não substitui esse ensaio final do sistema operacional.
 

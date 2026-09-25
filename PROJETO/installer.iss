@@ -29,7 +29,7 @@ Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; Flags: ch
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\install_tasks.ps1"" -Executable ""{app}\Radar de Lotes.exe"""; Flags: runhidden waituntilterminated
-Filename: "{app}\Radar de Lotes.exe"; Description: "Abrir Radar de Lotes"; Flags: nowait postinstall
+Filename: "{app}\Radar de Lotes.exe"; Parameters: "--updated"; Description: "Abrir Radar de Lotes"; Flags: nowait postinstall
 
 [UninstallRun]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\uninstall_tasks.ps1"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveRadarTasks"

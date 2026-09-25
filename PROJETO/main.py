@@ -15,6 +15,8 @@ def setup_logging():
 
 if __name__ == "__main__":
     setup_logging()
+    from radar_lotes.updater import cleanup_stale_updates
+    cleanup_stale_updates()
     if "--self-test" in sys.argv:
         from radar_lotes.database import Database
         from radar_lotes.version import __version__
@@ -37,4 +39,4 @@ if __name__ == "__main__":
                 logging.exception("Não foi possível mostrar a notificação")
         raise SystemExit(0 if result.errors == 0 else 2)
     from radar_lotes.ui import run_app
-    run_app()
+    run_app(updated="--updated" in sys.argv)

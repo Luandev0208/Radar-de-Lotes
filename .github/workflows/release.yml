@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - PROJETO/VERSION
 
 permissions:
   contents: write
@@ -17,7 +19,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-dev.txt
+        working-directory: PROJETO
       - run: python -m pytest -q
+        working-directory: PROJETO
 
   build-release:
     needs: test-linux
@@ -31,20 +35,21 @@ jobs:
         run: choco install innosetup --no-progress -y
       - name: Gerar instalador limpo
         shell: cmd
+        working-directory: PROJETO
         run: build_windows.bat
       - name: Gerar SHA-256
         shell: pwsh
         run: |
-          $file = "installer_output/Instalar Radar de Lotes.exe"
+          $file = "PROJETO/installer_output/Instalar Radar de Lotes.exe"
           $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
-          "$hash  Instalar Radar de Lotes.exe" | Set-Content -Encoding ascii "installer_output/SHA256SUMS.txt"
+          "$hash  Instalar Radar de Lotes.exe" | Set-Content -Encoding ascii "PROJETO/installer_output/SHA256SUMS.txt"
       - name: Guardar pacote validado
         uses: actions/upload-artifact@v4
         with:
           name: radar-de-lotes-windows
           path: |
-            installer_output/Instalar Radar de Lotes.exe
-            installer_output/SHA256SUMS.txt
+            PROJETO/installer_output/Instalar Radar de Lotes.exe
+            PROJETO/installer_output/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
       - name: Publicar Release privada
@@ -52,17 +57,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = (Get-Content VERSION -Raw).Trim()
-          $installer = "installer_output/Instalar Radar de Lotes.exe#Instalar Radar de Lotes.exe"
+          $version = (Get-Content PROJETO/VERSION -Raw).Trim()
+          $installer = "PROJETO/installer_output/Instalar Radar de Lotes.exe#Instalar Radar de Lotes.exe"
           gh release view "v$version" *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload "v$version" $installer "installer_output/SHA256SUMS.txt" `
+            gh release upload "v$version" $installer "PROJETO/installer_output/SHA256SUMS.txt" `
               --repo "${{ github.repository }}" --clobber
           } else {
-            gh release create "v$version" $installer "installer_output/SHA256SUMS.txt" `
+            gh release create "v$version" $installer "PROJETO/installer_output/SHA256SUMS.txt" `
               --repo "${{ github.repository }}" `
               --target "${{ github.sha }}" `
               --title "Radar de Lotes v$version" `
-              --notes-file RELEASE_NOTES.md `
+              --notes-file PROJETO/RELEASE_NOTES.md `
               --latest
           }

@@ -1,6 +1,8 @@
-# Radar de Lotes — V1.3
+# Radar de Lotes — V1.4
 
 Programa local para Windows que organiza lotes novos, interessantes e descartados. Os dados ficam em SQLite no próprio computador.
+
+O repositório está separado em `PROJETO` (código, testes e empacotamento) e `AUTOMACOES` (menu e BAT). Para administrar o projeto no Windows, abra `AUTOMACOES\RADAR.bat`. O tutorial completo está em `TUTORIAL_CONFIGURACAO_COMPLETA.txt` na raiz.
 
 Os cards permitem abrir o anúncio, pesquisar a localização no Google Maps, consultar contatos disponíveis e ver detalhes e histórico de preço. Dados ausentes não são inventados.
 
@@ -37,10 +39,10 @@ Python é necessário apenas para desenvolvimento. Depois da instalação, o ata
 ## Publicar uma nova versão
 
 1. Atualize e teste o código mantendo o repositório privado.
-2. Execute `PUBLICAR_ATUALIZACAO.bat 1.4.0`, usando o próximo número.
-3. Edite `RELEASE_NOTES.md` quando solicitado.
-4. O script faz um build local limpo e envia a versão usando a autenticação normal do Git; não contém token.
-5. O GitHub Actions testa novamente em Python 3.12, compila no Windows, cria `SHA256SUMS.txt` e publica a Release privada.
+2. Abra `AUTOMACOES\RADAR.bat` e crie uma branch `dev-vX.Y.Z` pela opção 6.
+3. Gere o instalador de teste pela opção 5; isso não altera `main`.
+4. Somente depois da aprovação explícita, use a opção 15 e digite `PUBLICAR`.
+5. O fluxo cria o backup da `main` antiga, testa, compila, publica `main`, tag, SHA-256 e Release privada.
 
 `VERSION` é a fonte central de versão. O build gera o arquivo temporário usado pelo Inno Setup.
 

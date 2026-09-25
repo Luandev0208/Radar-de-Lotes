@@ -4,7 +4,7 @@ import pytest
 
 from radar_lotes.updater import (
     CHECKSUM_NAME, INSTALLER_NAME, GitHubUpdater, UpdateError, checksum_for,
-    is_newer, parse_release, update_check_due, version_tuple,
+    cleanup_stale_updates, is_newer, parse_release, update_check_due, version_tuple,
 )
 
 
@@ -51,3 +51,18 @@ def test_daily_check_interval():
     assert update_check_due(None, now)
     assert update_check_due((now - timedelta(hours=25)).isoformat(), now)
     assert not update_check_due((now - timedelta(hours=2)).isoformat(), now)
+
+
+def test_cleanup_only_targets_controlled_old_installers(tmp_path, monkeypatch):
+    import radar_lotes.updater as updater
+    monkeypatch.setattr(updater, "UPDATE_DIR", tmp_path)
+    old = tmp_path / "Instalar Radar de Lotes.exe"
+    keep = tmp_path / "arquivo-do-usuario.txt"
+    old.write_bytes(b"installer")
+    keep.write_text("preservar", encoding="utf-8")
+    old.touch()
+    import os, time
+    past = time.time() - 10 * 86400
+    os.utime(old, (past, past))
+    assert cleanup_stale_updates(7) == 1
+    assert not old.exists() and keep.exists()

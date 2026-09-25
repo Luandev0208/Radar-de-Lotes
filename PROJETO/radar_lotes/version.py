@@ -10,5 +10,4 @@ def _version_file() -> Path:
 try:
     __version__ = _version_file().read_text(encoding="utf-8").strip()
 except OSError:
-    __version__ = "1.3.0"
-
+    __version__ = "0.0.0"

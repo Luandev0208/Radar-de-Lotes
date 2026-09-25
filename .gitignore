@@ -12,6 +12,8 @@ build_version.iss
 *.sqlite3
 backups/
 logs/
+AUTOMACOES/logs/*.log
+ENTREGA_PARA_TESTE/
 *.log
 .env
 *.token
