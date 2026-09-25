@@ -29,7 +29,7 @@ def test_inno_detection_includes_localappdata():
 
 def test_everything_prompts_publicar_once_and_does_not_repeat_builds():
     block = text().split("\n:tudo", 1)[1].split("\n:erro_version", 1)[0]
-    assert block.count("PUBLICAR") == 1
+    assert block.count('set /p "CONFIRM=') == 1
     assert block.count("call :testes") == 1
     assert block.count("call :gerar_exe") == 1
     assert block.count("call :gerar_instalador") == 1
