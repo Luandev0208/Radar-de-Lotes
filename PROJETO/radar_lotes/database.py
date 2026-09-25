@@ -24,7 +24,7 @@ def token_similarity(left: str, right: str) -> float:
 
 
 class Database:
-    SCHEMA_VERSION = 2
+    SCHEMA_VERSION = 3
 
     def __init__(self, path: Path = DB_PATH):
         ensure_dirs()
@@ -83,9 +83,10 @@ class Database:
         db.executescript("""
         CREATE TABLE IF NOT EXISTS listings (
           id INTEGER PRIMARY KEY, title TEXT NOT NULL, neighborhood TEXT NOT NULL,
-          city TEXT NOT NULL DEFAULT 'Contagem', price REAL, area REAL,
+          city TEXT NOT NULL DEFAULT '', price REAL, area REAL,
           dimensions TEXT, topography TEXT, walled TEXT, cab TEXT, cam TEXT,
-          address TEXT, url TEXT, source TEXT, image_url TEXT, contact TEXT,
+          address TEXT, latitude REAL, longitude REAL,
+          url TEXT, source TEXT, image_url TEXT, contact TEXT,
           notes TEXT, status TEXT NOT NULL DEFAULT 'new', classification TEXT,
           fingerprint TEXT NOT NULL UNIQUE, found_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
@@ -104,12 +105,16 @@ class Database:
         );
         """)
         existing = {row[1] for row in db.execute("PRAGMA table_info(listings)")}
-        for column in (
+        text_columns = (
             "description", "listing_code", "phone", "whatsapp", "email",
             "agency", "broker", "photos",
-        ):
+        )
+        for column in text_columns:
             if column not in existing:
                 db.execute(f"ALTER TABLE listings ADD COLUMN {column} TEXT DEFAULT ''")
+        for column in ("latitude", "longitude"):
+            if column not in existing:
+                db.execute(f"ALTER TABLE listings ADD COLUMN {column} REAL")
 
     @staticmethod
     def fingerprint(item: Listing) -> str:
@@ -145,12 +150,17 @@ class Database:
             for row in candidates:
                 if normalize(row["neighborhood"]) != normalize(item.neighborhood):
                     continue
+                if item.city and row["city"] and normalize(row["city"]) != normalize(item.city):
+                    continue
                 evidence = 0
                 if item.address and row["address"]:
                     if (
                         normalize(item.address) == normalize(row["address"])
                         or token_similarity(item.address, row["address"]) >= 0.6
                     ):
+                        evidence += 2
+                if item.latitude is not None and item.longitude is not None and row["latitude"] is not None and row["longitude"] is not None:
+                    if abs(item.latitude - row["latitude"]) < 0.0002 and abs(item.longitude - row["longitude"]) < 0.0002:
                         evidence += 2
                 if item.dimensions and row["dimensions"] and normalize(item.dimensions) == normalize(row["dimensions"]):
                     evidence += 1
@@ -168,7 +178,7 @@ class Database:
     def classify(item: Listing, criteria=None, missing_criteria=None) -> str:
         criteria = criteria or {}
         active = any(
-            value not in (None, "", [], (), 0, 0.0)
+            value not in (None, "", [], (), 0, 0.0, False)
             for value in criteria.values()
         )
         if not active:
@@ -190,7 +200,7 @@ class Database:
         }
         for name in incoming.__dataclass_fields__:
             current, new = old_values.get(name), getattr(incoming, name)
-            if name in ("price", "area"):
+            if name in ("price", "area", "latitude", "longitude"):
                 merged[name] = new if new is not None else current
             elif name == "photos":
                 combined = []
@@ -223,10 +233,7 @@ class Database:
     def upsert(self, item: Listing, criteria=None, missing_criteria=None) -> tuple[int, str]:
         now = datetime.now().isoformat(timespec="seconds")
         fp = self.fingerprint(item)
-        values = {
-            name: getattr(item, name)
-            for name in item.__dataclass_fields__
-        }
+        values = {name: getattr(item, name) for name in item.__dataclass_fields__}
         with self.connect() as db:
             old = self._find_duplicate(db, item)
             if old:
@@ -237,10 +244,7 @@ class Database:
                         (old["id"], item.price, now),
                     )
                 merged_item = self._merge(old, item)
-                values = {
-                    name: getattr(merged_item, name)
-                    for name in merged_item.__dataclass_fields__
-                }
+                values = {name: getattr(merged_item, name) for name in merged_item.__dataclass_fields__}
                 assignments = ",".join(f"{key}=?" for key in values)
                 db.execute(
                     f"UPDATE listings SET {assignments},classification=?,updated_at=? WHERE id=?",

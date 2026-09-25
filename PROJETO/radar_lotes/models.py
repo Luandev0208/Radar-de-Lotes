@@ -6,7 +6,7 @@ from typing import Optional
 class Listing:
     title: str
     neighborhood: str
-    city: str = "Contagem"
+    city: str = ""
     price: Optional[float] = None
     area: Optional[float] = None
     dimensions: str = ""
@@ -15,6 +15,8 @@ class Listing:
     cab: str = ""
     cam: str = ""
     address: str = ""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     url: str = ""
     source: str = "Manual"
     image_url: str = ""

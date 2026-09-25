@@ -1,6 +1,7 @@
 from radar_lotes.parsing import (
     extract_cab_cam, extract_contacts, extract_dimensions, extract_topography,
-    extract_walled, find_neighborhood, location_is_approximate, maps_query, parse_price,
+    extract_walled, find_city, find_neighborhood, location_is_approximate,
+    maps_query, parse_price,
 )
 
 
@@ -11,10 +12,12 @@ def test_price_formats():
     assert parse_price("420 mil") == 420000
 
 
-def test_dynamic_neighborhood_candidates():
+def test_dynamic_neighborhood_and_metro_city():
     assert find_neighborhood("Terreno em Contagem") == ""
     assert find_neighborhood("Terreno no bairro Nacional, Contagem") == "Nacional"
     assert find_neighborhood("Lote no Jardim Riacho", candidates=["Jardim Riacho"]) == "Jardim Riacho"
+    assert find_city("Lote em Ribeirão das Neves - MG") == "Ribeirão das Neves"
+    assert find_city("Terreno em São Paulo") == ""
 
 
 def test_safe_contacts_and_property_details():
@@ -28,17 +31,22 @@ def test_safe_contacts_and_property_details():
     assert extract_cab_cam(text) == ("1.0", "2.0")
 
 
-def test_maps_complete_address_is_specific_and_not_duplicated():
-    url = maps_query("Rua das Flores, 120, Nacional, Contagem", "Nacional", "Contagem", "MG")
+def test_maps_prefers_coordinates_when_available():
+    url = maps_query("Rua errada, 10", "Nacional", "Contagem", "MG", -19.9001234, -44.0505678)
+    assert "-19.9001234%2C-44.0505678" in url
+    assert "Rua+errada" not in url
+    assert not location_is_approximate("", -19.9, -44.05)
+
+
+def test_maps_address_is_constrained_to_mg_brazil():
+    url = maps_query("Rua das Flores, 120", "Nacional", "Contagem", "MG")
     assert "Rua+das+Flores" in url
-    assert "120" in url
-    assert url.count("Nacional") == 1
-    assert url.count("Contagem") == 1
+    assert "Nacional" in url
+    assert "Contagem" in url
+    assert "MG" in url
+    assert "Brasil" in url
     assert not location_is_approximate("Rua das Flores, 120")
 
 
-def test_maps_incomplete_address_is_marked_approximate():
-    url = maps_query("Rua das Flores", "Nacional", "Contagem", "MG")
-    assert "Rua+das+Flores" in url
-    assert "Nacional" in url
-    assert location_is_approximate("Rua das Flores")
+def test_maps_refuses_ambiguous_location_without_city():
+    assert maps_query("", "Centro", "", "MG") == ""

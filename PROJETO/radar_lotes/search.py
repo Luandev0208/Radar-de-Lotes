@@ -4,7 +4,7 @@ from datetime import datetime
 
 from .connectors import default_connectors
 from .database import Database
-from .parsing import plain
+from .parsing import METRO_CITIES, find_city, plain
 
 LOG = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ def _number(value):
 
 @dataclass(frozen=True)
 class SearchFilters:
-    city: str = "Contagem"
+    city: str = ""
     neighborhoods: tuple[str, ...] = ()
     min_price: float | None = None
     max_price: float | None = None
@@ -29,6 +29,7 @@ class SearchFilters:
     dimensions: str = ""
     topography: str = ""
     walled: str = ""
+    require_price: bool = True
 
     @classmethod
     def from_dict(cls, data=None):
@@ -38,8 +39,11 @@ class SearchFilters:
             neighborhoods = tuple(x.strip() for x in neighborhoods.split(",") if x.strip())
         else:
             neighborhoods = tuple(str(x).strip() for x in neighborhoods if str(x).strip())
+        city = str(data.get("city") or "").strip()
+        if city not in METRO_CITIES:
+            city = ""
         return cls(
-            city=str(data.get("city") or "").strip(),
+            city=city,
             neighborhoods=neighborhoods,
             min_price=_number(data.get("min_price")),
             max_price=_number(data.get("max_price")),
@@ -48,6 +52,7 @@ class SearchFilters:
             dimensions=str(data.get("dimensions") or "").strip(),
             topography=str(data.get("topography") or "").strip(),
             walled=str(data.get("walled") or "").strip(),
+            require_price=bool(data.get("require_price", True)),
         )
 
     def to_dict(self):
@@ -56,24 +61,35 @@ class SearchFilters:
         return data
 
     def search_terms(self):
-        places = self.neighborhoods or ((self.city,) if self.city else ("",))
+        region = self.city or "Belo Horizonte Região Metropolitana MG"
+        places = self.neighborhoods or ("",)
         terms = []
         for place in places:
-            pieces = ["terreno lote", str(place).strip()]
-            if self.city and plain(self.city) not in plain(str(place)):
-                pieces.append(self.city)
+            pieces = ["terreno lote à venda", str(place).strip(), region, "Minas Gerais", "R$"]
             term = " ".join(piece for piece in pieces if piece).strip()
-            if term and term not in terms:
+            if term not in terms:
                 terms.append(term)
-        return terms or ["terreno lote"]
+        return terms
+
+    def _item_city(self, item):
+        city = str(item.city or "").strip()
+        if city in METRO_CITIES:
+            return city
+        return find_city(item.title, item.description, item.address, item.neighborhood)
 
     def match(self, item):
         missing = []
+        city = self._item_city(item)
+
         if self.city:
-            if item.city and plain(item.city) != plain(self.city):
+            if not city or plain(city) != plain(self.city):
                 return False, missing
-            if not item.city:
-                missing.append("cidade")
+        else:
+            if city not in METRO_CITIES:
+                return False, missing
+
+        if self.require_price and item.price is None:
+            return False, ["preço"]
 
         if self.neighborhoods:
             if item.neighborhood:
@@ -82,7 +98,7 @@ class SearchFilters:
                 if not any(current == name or current in name or name in current for name in wanted):
                     return False, missing
             else:
-                missing.append("bairro")
+                return False, ["bairro"]
 
         for field, minimum, maximum, label in (
             ("price", self.min_price, self.max_price, "preço"),
@@ -118,6 +134,8 @@ class SearchFilters:
             if not item.walled:
                 missing.append("murado")
 
+        if not item.city:
+            item.city = city
         return True, missing
 
 
@@ -126,6 +144,7 @@ class SearchResult:
     new: int = 0
     updated: int = 0
     rejected: int = 0
+    missing_price: int = 0
     errors: int = 0
     source_stats: dict | None = None
 
@@ -142,8 +161,12 @@ def run_search(db: Database, filters: SearchFilters | None = None):
             items = connector.search()
             result.source_stats[connector.name] = getattr(connector, "stats", {"found": len(items)})
             result.errors += getattr(connector, "errors", 0)
-            LOG.info("%s: %s anúncios lidos", connector.name, len(items))
+            LOG.info("%s: %s anúncios individuais lidos", connector.name, len(items))
             for item in items:
+                if filters.require_price and item.price is None:
+                    result.missing_price += 1
+                    result.rejected += 1
+                    continue
                 accepted, missing = filters.match(item)
                 if not accepted:
                     result.rejected += 1

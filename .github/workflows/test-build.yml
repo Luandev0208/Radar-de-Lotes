@@ -57,6 +57,47 @@ jobs:
             "$hash  $name"
           }
           $lines | Set-Content -Encoding ascii "PROJETO/installer_output/SHA256SUMS.txt"
+      - name: Preparar pacote completo com codigo e BATs
+        shell: pwsh
+        run: |
+          $version = (Get-Content "PROJETO/VERSION" -Raw).Trim()
+          $stageRoot = "entrega_completa"
+          $stage = Join-Path $stageRoot "Radar-de-Lotes-v$version"
+          Remove-Item $stageRoot -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          git ls-files | ForEach-Object {
+            if ($_ -eq "AUTOMACOES/RADAR.bat") { return }
+            $destination = Join-Path $stage $_
+            $parent = Split-Path $destination -Parent
+            New-Item -ItemType Directory -Force -Path $parent | Out-Null
+            Copy-Item -LiteralPath $_ -Destination $destination -Force
+          }
+
+          $localAutomation = Join-Path $stage "AUTOMACOES"
+          New-Item -ItemType Directory -Force -Path $localAutomation | Out-Null
+          Copy-Item "FERRAMENTAS_DESENVOLVIMENTO/RADAR_LOCAL_TEMPLATE.bat" (Join-Path $localAutomation "RADAR.bat") -Force
+
+          $delivery = Join-Path $stage "ENTREGA_PARA_TESTE"
+          New-Item -ItemType Directory -Force -Path $delivery | Out-Null
+          Copy-Item "PROJETO/installer_output/Instalar Radar de Lotes.exe" $delivery -Force
+          Copy-Item "PROJETO/installer_output/Radar-de-Lotes-Instalador-Compatibilidade.zip" $delivery -Force
+          Copy-Item "PROJETO/installer_output/SHA256SUMS.txt" $delivery -Force
+
+          @"
+          Radar de Lotes v$version - pacote completo de teste
+
+          - AUTOMACOES/RADAR.bat: menu local completo.
+          - FERRAMENTAS_DESENVOLVIMENTO: template e instalador do BAT.
+          - PROJETO: codigo-fonte, testes, build e instalador.
+          - ENTREGA_PARA_TESTE: instaladores prontos e SHA-256.
+          - REVISAO_FUTURA_WORK.md: registro para auditoria futura.
+
+          Este pacote e de teste. Nao significa que a main/tag/Release foram publicadas.
+          "@ | Set-Content -Encoding utf8 (Join-Path $stage "LEIA-ME-PRIMEIRO.txt")
+
+          $zip = "PROJETO/installer_output/Radar-de-Lotes-v$version-COMPLETO.zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
       - name: Guardar pacote de teste
         uses: actions/upload-artifact@v4
         with:
@@ -65,5 +106,6 @@ jobs:
             PROJETO/installer_output/Instalar Radar de Lotes.exe
             PROJETO/installer_output/Radar-de-Lotes-Instalador-Compatibilidade.zip
             PROJETO/installer_output/SHA256SUMS.txt
+            PROJETO/installer_output/Radar-de-Lotes-v*-COMPLETO.zip
           if-no-files-found: error
           retention-days: 30
