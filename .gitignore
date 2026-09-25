@@ -2,6 +2,7 @@
 build/
 dist/
 installer_output/
+installer_compatible_output/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -12,7 +13,7 @@ build_version.iss
 *.sqlite3
 backups/
 logs/
-AUTOMACOES/logs/*.log
+AUTOMACOES/
 ENTREGA_PARA_TESTE/
 *.log
 .env

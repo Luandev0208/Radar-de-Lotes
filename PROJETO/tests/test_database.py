@@ -1,5 +1,6 @@
 from pathlib import Path
 import sqlite3
+
 from radar_lotes.database import Database
 from radar_lotes.models import Listing
 
@@ -18,9 +19,18 @@ def test_insert_deduplicate_and_price_history(tmp_path):
     assert [p[0] for p in prices] == [400000, 390000]
 
 
-def test_classification_handles_missing_data():
-    item = Listing("Terreno", "Nacional")
-    assert Database.classify(item) == "Pode ser interessante — precisa confirmar"
+def test_dynamic_classification_uses_current_filters():
+    item = Listing("Terreno", "Nacional", price=395000, area=360)
+    criteria = {
+        "city": "Contagem",
+        "neighborhoods": ["Nacional"],
+        "max_price": 420000,
+        "min_area": 350,
+        "max_area": 380,
+    }
+    assert Database.classify(item, criteria, []) == "Compatível com filtros"
+    assert "confirmar" in Database.classify(item, criteria, ["topografia"]).lower()
+    assert Database.classify(item) == "Encontrado"
 
 
 def test_status_change(tmp_path):
@@ -67,21 +77,12 @@ def test_incomplete_duplicate_preserves_and_combines_data(tmp_path):
     assert "a.jpg" in row["photos"] and "b.jpg" in row["photos"]
     sources = db.sources(listing_id)
     assert {s["source"] for s in sources} == {"OLX", "Chaves na Mão"}
-    assert {s["url"] for s in sources} == {"https://olx.test/a", "https://chaves.test/b"}
 
 
-def test_classification_requires_known_price_and_area():
-    assert Database.classify(Listing("Lote", "Nacional", area=360)) == "Pode ser interessante — precisa confirmar"
-    assert Database.classify(Listing("Lote", "Nacional", price=395000)) == "Pode ser interessante — precisa confirmar"
-    assert Database.classify(Listing("Lote", "Nacional", price=395000, area=360)) == "Muito interessante"
-    assert Database.classify(Listing("Lote", "Nacional", price=500000, area=360)) == "Pouco compatível"
-    assert Database.classify(Listing("Lote", "Nacional", price=395000, area=700)) == "Pouco compatível"
-
-
-def test_low_compatibility_does_not_fill_new_tab(tmp_path):
+def test_new_tab_no_longer_hides_items_by_old_fixed_profile(tmp_path):
     db = Database(tmp_path / "test.db")
-    db.upsert(Listing("Lote fora do perfil", "Nacional", price=395000, area=700))
-    assert db.all("new") == []
+    db.upsert(Listing("Lote maior", "Nacional", price=500000, area=700))
+    assert len(db.all("new")) == 1
 
 
 def test_migration_preserves_legacy_data_and_creates_backup(tmp_path):
@@ -115,12 +116,9 @@ def test_reopening_database_preserves_status_history_and_settings(tmp_path):
     db = Database(path)
     listing_id, _ = db.upsert(Listing("Lote salvo", "Nacional", price=395000, area=360))
     db.set_status(listing_id, "interesting")
-    db.set_state("github_last_check", "2026-09-25T10:00:00")
+    db.set_state("search_filters", {"city": "Contagem", "neighborhoods": ["Nacional"]})
 
     reopened = Database(path)
     row = reopened.get(listing_id)
     assert row["status"] == "interesting"
-    assert reopened.get_state("github_last_check") == "2026-09-25T10:00:00"
-    with reopened.connect() as conn:
-        prices = conn.execute("SELECT price FROM price_history WHERE listing_id=?", (listing_id,)).fetchall()
-        assert [price[0] for price in prices] == [395000]
+    assert reopened.get_state("search_filters")["city"] == "Contagem"

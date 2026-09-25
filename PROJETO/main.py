@@ -16,20 +16,33 @@ def setup_logging():
 if __name__ == "__main__":
     setup_logging()
     from radar_lotes.updater import cleanup_stale_updates
+
     cleanup_stale_updates()
+
     if "--self-test" in sys.argv:
         from radar_lotes.database import Database
         from radar_lotes.version import __version__
+
         db = Database()
         print(f"Radar de Lotes {__version__}: OK ({db.path})")
         raise SystemExit(0)
+
     if "--scheduled" in sys.argv or "--search-only" in sys.argv:
         from radar_lotes.database import Database
-        from radar_lotes.search import run_search
-        result = run_search(Database())
+        from radar_lotes.search import SearchFilters, run_search
+
+        db = Database()
+        saved = db.get_state("search_filters")
+        if not saved:
+            logging.info(
+                "Busca agendada ignorada: ainda não existem filtros definidos pelo usuário."
+            )
+            raise SystemExit(0)
+        result = run_search(db, SearchFilters.from_dict(saved))
         if result.new and sys.platform == "win32":
             try:
                 from winotify import Notification
+
                 Notification(
                     app_id="Radar de Lotes",
                     title="Novos lotes encontrados",
@@ -38,5 +51,7 @@ if __name__ == "__main__":
             except Exception:
                 logging.exception("Não foi possível mostrar a notificação")
         raise SystemExit(0 if result.errors == 0 else 2)
+
     from radar_lotes.ui import run_app
+
     run_app(updated="--updated" in sys.argv)

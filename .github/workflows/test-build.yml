@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: PROJETO/requirements-dev.txt
       - run: python -m pip install -r requirements-dev.txt
         working-directory: PROJETO
       - run: python -m pytest -q
@@ -34,24 +36,34 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: PROJETO/requirements-dev.txt
       - name: Instalar Inno Setup
         run: choco install innosetup --no-progress -y
-      - name: Gerar instalador de teste limpo
+      - name: Gerar instaladores
         shell: cmd
         working-directory: PROJETO
         run: build_windows.bat
       - name: Gerar SHA-256
         shell: pwsh
         run: |
-          $file = "PROJETO/installer_output/Instalar Radar de Lotes.exe"
-          $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
-          "$hash  Instalar Radar de Lotes.exe" | Set-Content -Encoding ascii "PROJETO/installer_output/SHA256SUMS.txt"
-      - name: Guardar instalador de teste
+          $files = @(
+            "PROJETO/installer_output/Instalar Radar de Lotes.exe",
+            "PROJETO/installer_output/Radar-de-Lotes-Instalador-Compatibilidade.zip"
+          )
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
+            $name = [IO.Path]::GetFileName($file)
+            "$hash  $name"
+          }
+          $lines | Set-Content -Encoding ascii "PROJETO/installer_output/SHA256SUMS.txt"
+      - name: Guardar pacote de teste
         uses: actions/upload-artifact@v4
         with:
           name: Radar-de-Lotes-teste
           path: |
             PROJETO/installer_output/Instalar Radar de Lotes.exe
+            PROJETO/installer_output/Radar-de-Lotes-Instalador-Compatibilidade.zip
             PROJETO/installer_output/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30

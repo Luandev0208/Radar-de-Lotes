@@ -1,13 +1,17 @@
 from pathlib import Path
 
 
-def test_update_dialog_requires_no_credential():
-    ui_path = Path(__file__).resolve().parents[1] / "radar_lotes" / "ui.py"
-    source = ui_path.read_text(encoding="utf-8")
-    update_dialog = source.split("class UpdateDialog", 1)[1].split("class AddDialog", 1)[0]
+def test_update_is_background_and_discreet():
+    source = (Path(__file__).resolve().parents[1] / "radar_lotes" / "ui.py").read_text(encoding="utf-8")
+    assert "Nova versão" in source
+    assert "update_notice" in source
+    assert 'QPushButton("ATUALIZAÇÕES")' not in source
+    assert "check_updates_silently" in source
+    assert "Nenhuma conta" not in source
 
-    assert "VERIFICAR ATUALIZAÇÕES" in update_dialog
-    assert "Nenhuma conta" in update_dialog
-    assert "save_token" not in update_dialog
-    assert "token_input" not in update_dialog
-    assert "PAT" not in update_dialog
+
+def test_search_button_opens_filter_dialog():
+    source = (Path(__file__).resolve().parents[1] / "radar_lotes" / "ui.py").read_text(encoding="utf-8")
+    assert "class SearchFilterDialog" in source
+    assert "BUSCAR COM ESTES FILTROS" in source
+    assert "Filtros da busca" in source

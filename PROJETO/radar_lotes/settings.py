@@ -8,14 +8,6 @@ DB_PATH = DATA_DIR / "radar.db"
 BACKUP_DIR = DATA_DIR / "backups"
 LOG_DIR = DATA_DIR / "logs"
 
-PRIORITY_NEIGHBORHOODS = [
-    "Nacional", "Xangri-lá", "Parque Xangri-lá",
-    "Vale das Amendoeiras", "Bom Jesus", "Arvoredo",
-]
-MAX_PRICE = 420_000
-MIN_AREA = 350
-MAX_AREA = 380
-
 
 def ensure_dirs() -> None:
     for path in (DATA_DIR, BACKUP_DIR, LOG_DIR):
