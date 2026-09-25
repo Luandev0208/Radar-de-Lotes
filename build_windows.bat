@@ -16,7 +16,7 @@ python -m pip install --upgrade pip || exit /b 1
 python -m pip install -r requirements-dev.txt || exit /b 1
 python -m pytest -q || exit /b 1
 python -m PyInstaller --noconfirm --clean --onefile --windowed --name "Radar de Lotes" --add-data "VERSION;." --collect-all winotify --collect-submodules bs4 --collect-submodules requests main.py || exit /b 1
-dist\Radar de Lotes.exe --self-test || exit /b 1
+"dist\Radar de Lotes.exe" --self-test || exit /b 1
 
 >build_version.iss echo #define AppVersion "%RADAR_VERSION%"
 set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
